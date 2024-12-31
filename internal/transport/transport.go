@@ -28,6 +28,9 @@ type Transport interface {
 
 	// SetHandler sets the handler for incoming messages
 	SetHandler(handler Handler)
+
+	// Done returns a channel that is closed when this transport is closed.
+	Done() <-chan struct{}
 }
 
 // Options contains configuration options for transports
@@ -54,6 +57,11 @@ func NewBaseTransport() *BaseTransport {
 	return &BaseTransport{
 		done: make(chan struct{}),
 	}
+}
+
+// Done implements Transport
+func (t *BaseTransport) Done() <-chan struct{} {
+	return t.done
 }
 
 // SetHandler implements Transport
