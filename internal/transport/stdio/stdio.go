@@ -83,16 +83,14 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 	if conn == nil {
 		return errors.New("transport not started")
 	}
-
+	t.BaseTransport.Logger.Logf("Transport sending: %+v", msg)
 	if msg.ID != nil {
-		t.BaseTransport.Logger.Logf("Sending request with ID %v: %s", msg.ID, msg.Method)
 		var result interface{}
 		callOpts := []jsonrpc2.CallOption{
 			jsonrpc2.PickID(*msg.ID),
 		}
 		return conn.Call(ctx, msg.Method, msg.Params, &result, callOpts...)
 	} else {
-		t.BaseTransport.Logger.Logf("Sending notification: %s", msg.Method)
 		return conn.Notify(ctx, msg.Method, msg.Params)
 	}
 }

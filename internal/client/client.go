@@ -19,7 +19,10 @@ type clientHandler struct {
 
 func (h *clientHandler) Handle(ctx context.Context, msg *types.Message) (*types.Message, error) {
 	if h.logger != nil {
-		h.logger.Logf("Client received message: %+v", msg)
+		h.logger.Logf("Client handler received message: %+v", msg)
+		if msg.ID != nil {
+			h.logger.Logf("Comparing IDs - received: %v, expected: %v", *msg.ID, h.pingID)
+		}
 	}
 
 	// Check if it's a response to our ping
