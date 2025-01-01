@@ -21,17 +21,56 @@ type StdioTransport struct {
 	mu     sync.Mutex
 }
 
-// NewStdioTransport creates a new StdioTransport
-func NewStdioTransport(opts *transport.Options) *StdioTransport {
-	t := &StdioTransport{
-		BaseTransport: transport.NewBaseTransport(),
-		stdin:         os.Stdin,
-		stdout:        os.Stdout,
-		stderr:        os.Stderr,
+// Options holds custom I/O streams for the StdioTransport
+// plus any other relevant fields you want.
+type Options struct {
+	// If these are nil, we’ll default to os.Stdin/os.Stdout/os.Stderr.
+	Stdin  io.ReadCloser
+	Stdout io.WriteCloser
+	Stderr io.WriteCloser
+
+	*transport.Options
+}
+
+// NewStdioTransport creates a new StdioTransport using
+// either custom I/O (if provided) or the default os.* streams.
+func NewStdioTransport(opts *Options) *StdioTransport {
+	// Defensive check so we never panic on opts == nil.
+	if opts == nil {
+		opts = &Options{
+			Options: &transport.Options{},
+		}
+	} else if opts.Options == nil {
+		// Ensure the nested Options is initialized
+		opts.Options = &transport.Options{}
 	}
-	if opts != nil && opts.Handler != nil {
+
+	// Set default I/O if not provided
+	if opts.Stdin == nil {
+		opts.Stdin = os.Stdin
+	}
+	if opts.Stdout == nil {
+		opts.Stdout = os.Stdout
+	}
+	if opts.Stderr == nil {
+		opts.Stderr = os.Stderr
+	}
+
+	// Make the base transport
+	base := transport.NewBaseTransport()
+
+	t := &StdioTransport{
+		BaseTransport: base,
+		stdin:         opts.Stdin,
+		stdout:        opts.Stdout,
+		stderr:        opts.Stderr,
+	}
+
+	// If caller provided a Handler in transport.Options, set it
+	if opts.Handler != nil {
 		t.SetHandler(opts.Handler)
 	}
+
 	return t
 }
 

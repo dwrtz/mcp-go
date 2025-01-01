@@ -64,14 +64,6 @@ mcp-go/
 Focus on implementing the basic protocol infrastructure and message handling.
 
 #### Tasks
-- [ ] Set up project infrastructure
-  - [ ] Project layout and package structure
-  - [ ] Build system and dependency management
-  - [ ] Linting and code formatting
-  - [ ] CI/CD pipeline setup
-  - [ ] Test infrastructure setup
-
-
 - [ ] Define core protocol types in pkg/types
   - [ ] JSON-RPC message structures
   - [ ] Request/Response types
@@ -320,3 +312,4 @@ Create example implementations and documentation.
 - Proper error handling
 - Secure defaults
 - Authentication support
+

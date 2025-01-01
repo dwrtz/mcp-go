@@ -99,9 +99,12 @@ func (t *BaseTransport) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *js
 		return nil, &jsonrpc2.Error{Code: types.MethodNotFound, Message: "no handler registered"}
 	}
 
+	// Create a copy of the ID to preserve it exactly
+	id := req.ID
+
 	msg := &types.Message{
 		JSONRPC: types.JSONRPCVersion,
-		ID:      &req.ID,
+		ID:      &id, // Use the exact ID from the request
 		Method:  req.Method,
 		Params:  req.Params,
 	}
