@@ -23,8 +23,8 @@ const (
 	RoleAssistant Role = "assistant"
 )
 
-// RequestID represents a unique identifier for a request in JSON-RPC
-type RequestID = jsonrpc2.ID // This is typically a string or number
+// ID represents a unique identifier for a request in JSON-RPC
+type ID = jsonrpc2.ID // This is typically a string or number
 
 // ProgressToken represents a token for tracking progress of long-running operations
 type ProgressToken interface{} // string or number
@@ -71,7 +71,7 @@ type Implementation struct {
 // Message represents either a Request, Notification, or Response
 type Message struct {
 	JSONRPC string           `json:"jsonrpc"`
-	ID      *RequestID       `json:"id,omitempty"`
+	ID      *ID              `json:"id,omitempty"`
 	Method  string           `json:"method,omitempty"`
 	Params  *json.RawMessage `json:"params,omitempty"`
 	Result  *json.RawMessage `json:"result,omitempty"`

@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"sync"
 
 	"github.com/dwrtz/mcp-go/internal/transport"
@@ -13,11 +12,9 @@ import (
 // clientHandler receives all responses from the server.
 type clientHandler struct {
 	client *Client
-	pingID string // Note: This will now be "1" to match our numeric ID
-	logger interface {
-		Logf(format string, args ...interface{})
-	}
-	once sync.Once
+	pingID types.ID
+	logger transport.Logger
+	once   sync.Once
 }
 
 func (h *clientHandler) Handle(ctx context.Context, msg *types.Message) (*types.Message, error) {
@@ -26,13 +23,8 @@ func (h *clientHandler) Handle(ctx context.Context, msg *types.Message) (*types.
 	}
 
 	// Check if it's a response to our ping
-	if msg.ID != nil && msg.Result != nil {
-		msgID := h.idToString(msg.ID)
-		if h.logger != nil {
-			h.logger.Logf("Client comparing IDs - received: %v, expected: %v", msgID, h.pingID)
-		}
-
-		if msgID == h.pingID {
+	if msg.ID != nil {
+		if msg.Result != nil && *msg.ID == h.pingID {
 			if h.logger != nil {
 				h.logger.Logf("Client received matching ping response, closing")
 			}
@@ -42,13 +34,6 @@ func (h *clientHandler) Handle(ctx context.Context, msg *types.Message) (*types.
 		}
 	}
 	return nil, nil
-}
-
-func (h *clientHandler) idToString(id *types.RequestID) string {
-	if id == nil {
-		return ""
-	}
-	return fmt.Sprintf("%v", *id)
 }
 
 // Client is a minimal struct that can send requests and handle responses.
@@ -75,7 +60,7 @@ func (c *Client) SetLogger(l transport.Logger) {
 	c.logger = l
 }
 
-func (c *Client) Start(ctx context.Context, pingID string) error {
+func (c *Client) Start(ctx context.Context, pingID types.ID) error {
 	h := &clientHandler{
 		client: c,
 		pingID: pingID,
@@ -95,19 +80,11 @@ func (c *Client) Start(ctx context.Context, pingID string) error {
 }
 
 // Ping sends a "ping" request to the server.
-func (c *Client) Ping(ctx context.Context, pingID string) error {
-	// Ensure transport is ready
+func (c *Client) Ping(ctx context.Context, id types.ID) error {
 	select {
 	case <-c.ready:
 	case <-ctx.Done():
 		return fmt.Errorf("timeout waiting for transport: %w", ctx.Err())
-	}
-
-	// Create a numeric ID that matches what the client expects
-	num, _ := strconv.ParseUint(pingID, 10, 64)
-	id := types.RequestID{
-		Num:      num,
-		IsString: false,
 	}
 
 	msg := &types.Message{

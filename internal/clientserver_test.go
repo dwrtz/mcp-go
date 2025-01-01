@@ -14,6 +14,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
+	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
 // nopWriteCloser wraps an io.Writer and provides a no-op Close method
@@ -90,7 +91,7 @@ func TestPingPong(t *testing.T) {
 
 	// Start client with handler
 	logger.Logf("Starting client...")
-	pingID := "1" // Changed to match our numeric ID
+	pingID := types.ID{Num: 1, IsString: false}
 	if err := cli.Start(ctx, pingID); err != nil {
 		t.Fatalf("client.Start() error: %v", err)
 	}

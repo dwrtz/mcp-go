@@ -17,7 +17,7 @@ func TestMessage_Validate(t *testing.T) {
 			name: "Valid request",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.RequestID{Num: 1},
+				ID:      &types.ID{Num: 1, IsString: false},
 				Method:  "someMethod",
 			},
 			wantErr: false,
@@ -34,7 +34,7 @@ func TestMessage_Validate(t *testing.T) {
 			name: "Valid response (result)",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.RequestID{Num: 2},
+				ID:      &types.ID{Num: 2, IsString: false},
 				Result:  jsonPtr(`{"ok":true}`),
 			},
 			wantErr: false,
@@ -43,7 +43,7 @@ func TestMessage_Validate(t *testing.T) {
 			name: "Invalid: request with result",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.RequestID{Num: 3},
+				ID:      &types.ID{Num: 3, IsString: false},
 				Method:  "badRequest",
 				Result:  jsonPtr(`{"some":"thing"}`),
 			},
@@ -53,7 +53,7 @@ func TestMessage_Validate(t *testing.T) {
 			name: "Invalid: response with both result and error",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.RequestID{Num: 4},
+				ID:      &types.ID{Num: 4, IsString: false},
 				Result:  jsonPtr(`{"some":"thing"}`),
 				Error:   &types.ErrorResponse{Code: types.InternalError, Message: "oops"},
 			},
