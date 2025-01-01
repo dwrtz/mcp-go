@@ -33,10 +33,24 @@ type Transport interface {
 	Done() <-chan struct{}
 }
 
+// Logger defines a minimal interface for logging
+type Logger interface {
+	// Logf prints a formatted log message
+	Logf(format string, args ...interface{})
+}
+
+// noopLogger implements Logger with no-op methods
+type NoopLogger struct{}
+
+func (l NoopLogger) Logf(format string, args ...interface{}) {}
+
 // Options contains configuration options for transports
 type Options struct {
 	// Handler is the handler for incoming messages
 	Handler Handler
+
+	// Logger for transport operations. If nil, logging is disabled.
+	Logger Logger
 
 	// BufferSize is the size of message buffers (if applicable)
 	BufferSize int
@@ -48,6 +62,7 @@ type Options struct {
 // BaseTransport provides common functionality for transport implementations
 type BaseTransport struct {
 	handler Handler
+	Logger  Logger
 	Conn    *jsonrpc2.Conn
 	done    chan struct{}
 }
@@ -55,7 +70,17 @@ type BaseTransport struct {
 // NewBaseTransport creates a new BaseTransport
 func NewBaseTransport() *BaseTransport {
 	return &BaseTransport{
-		done: make(chan struct{}),
+		done:   make(chan struct{}),
+		Logger: NoopLogger{}, // Default to no-op logger
+	}
+}
+
+// SetLogger sets the logger for the transport
+func (t *BaseTransport) SetLogger(l Logger) {
+	if l == nil {
+		t.Logger = NoopLogger{}
+	} else {
+		t.Logger = l
 	}
 }
 

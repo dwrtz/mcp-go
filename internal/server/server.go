@@ -17,6 +17,7 @@ type Server struct {
 	done      chan struct{}
 	mu        sync.Mutex
 	closed    bool
+	logger    transport.Logger
 }
 
 // NewServer creates a new Server with the given Transport. The transport
@@ -26,6 +27,13 @@ func NewServer(t transport.Transport) *Server {
 		transport: t,
 		done:      make(chan struct{}),
 	}
+}
+
+func (s *Server) SetLogger(l transport.Logger) {
+	if l == nil {
+		l = transport.NoopLogger{}
+	}
+	s.logger = l
 }
 
 // Start runs transport.Start in a goroutine and waits until done.

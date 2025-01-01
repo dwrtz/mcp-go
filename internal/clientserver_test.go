@@ -12,6 +12,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/client"
 	"github.com/dwrtz/mcp-go/internal/server"
 	"github.com/dwrtz/mcp-go/internal/testutil"
+	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 )
 
@@ -59,6 +60,9 @@ func TestPingPong(t *testing.T) {
 		Stdin:  serverStdinR,
 		Stdout: serverStdoutW,
 		Stderr: devNull,
+		Options: &transport.Options{
+			Logger: logger,
+		},
 	})
 	srv := server.NewServer(serverTransport)
 	serverTransport.SetHandler(&server.Handler{Logger: logger})
@@ -68,8 +72,11 @@ func TestPingPong(t *testing.T) {
 		Stdin:  clientStdinR,
 		Stdout: clientStdoutW,
 		Stderr: devNull,
+		Options: &transport.Options{
+			Logger: logger,
+		},
 	})
-	cli := client.NewClient(clientTransport, logger)
+	cli := client.NewClient(clientTransport)
 
 	// Start server first
 	logger.Logf("Starting server...")

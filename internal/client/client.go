@@ -55,20 +55,24 @@ func (h *clientHandler) idToString(id *types.RequestID) string {
 type Client struct {
 	transport transport.Transport
 	ready     chan struct{}
-	logger    interface {
-		Logf(format string, args ...interface{})
-	}
-	mu     sync.Mutex
-	closed bool
+	logger    transport.Logger
+	mu        sync.Mutex
+	closed    bool
 }
 
 // NewClient creates a new Client with the given transport and optional logger
-func NewClient(t transport.Transport, logger interface{ Logf(string, ...interface{}) }) *Client {
+func NewClient(t transport.Transport) *Client {
 	return &Client{
 		transport: t,
 		ready:     make(chan struct{}),
-		logger:    logger,
 	}
+}
+
+func (c *Client) SetLogger(l transport.Logger) {
+	if l == nil {
+		l = transport.NoopLogger{}
+	}
+	c.logger = l
 }
 
 func (c *Client) Start(ctx context.Context, pingID string) error {

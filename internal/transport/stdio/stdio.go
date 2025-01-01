@@ -22,26 +22,25 @@ type StdioTransport struct {
 }
 
 // Options holds custom I/O streams for the StdioTransport
-// plus any other relevant fields you want.
 type Options struct {
-	// If these are nil, we’ll default to os.Stdin/os.Stdout/os.Stderr.
+	// If these are nil, we'll default to os.Stdin/os.Stdout/os.Stderr
 	Stdin  io.ReadCloser
 	Stdout io.WriteCloser
 	Stderr io.WriteCloser
 
+	// Common transport options
 	*transport.Options
 }
 
-// NewStdioTransport creates a new StdioTransport using
-// either custom I/O (if provided) or the default os.* streams.
+// NewStdioTransport creates a new StdioTransport
 func NewStdioTransport(opts *Options) *StdioTransport {
-	// Defensive check so we never panic on opts == nil.
 	if opts == nil {
 		opts = &Options{
 			Options: &transport.Options{},
 		}
-	} else if opts.Options == nil {
-		// Ensure the nested Options is initialized
+	}
+
+	if opts.Options == nil {
 		opts.Options = &transport.Options{}
 	}
 
@@ -56,8 +55,10 @@ func NewStdioTransport(opts *Options) *StdioTransport {
 		opts.Stderr = os.Stderr
 	}
 
-	// Make the base transport
 	base := transport.NewBaseTransport()
+	if opts.Options.Logger != nil {
+		base.SetLogger(opts.Options.Logger)
+	}
 
 	t := &StdioTransport{
 		BaseTransport: base,
@@ -66,12 +67,34 @@ func NewStdioTransport(opts *Options) *StdioTransport {
 		stderr:        opts.Stderr,
 	}
 
-	// If caller provided a Handler in transport.Options, set it
-	if opts.Handler != nil {
-		t.SetHandler(opts.Handler)
+	if opts.Options.Handler != nil {
+		t.SetHandler(opts.Options.Handler)
 	}
 
 	return t
+}
+
+// Send implements Transport
+func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
+	t.mu.Lock()
+	conn := t.Conn
+	t.mu.Unlock()
+
+	if conn == nil {
+		return errors.New("transport not started")
+	}
+
+	if msg.ID != nil {
+		t.BaseTransport.Logger.Logf("Sending request with ID %v: %s", msg.ID, msg.Method)
+		var result interface{}
+		callOpts := []jsonrpc2.CallOption{
+			jsonrpc2.PickID(*msg.ID),
+		}
+		return conn.Call(ctx, msg.Method, msg.Params, &result, callOpts...)
+	} else {
+		t.BaseTransport.Logger.Logf("Sending notification: %s", msg.Method)
+		return conn.Notify(ctx, msg.Method, msg.Params)
+	}
 }
 
 // Start implements Transport
@@ -96,26 +119,6 @@ func (t *StdioTransport) Start(ctx context.Context) error {
 	case <-ctx.Done():
 	}
 	return nil
-}
-
-// Send implements Transport
-func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
-	t.mu.Lock()
-	conn := t.Conn
-	t.mu.Unlock()
-
-	if conn == nil {
-		return errors.New("transport not started")
-	}
-
-	// If an ID is present, treat it like a request; otherwise it's a notification.
-	if msg.ID != nil {
-		// "Blocking" JSON-RPC call, ignoring returned result:
-		return conn.Call(ctx, msg.Method, msg.Params, nil /* no result needed */)
-	} else {
-		// One-way notification:
-		return conn.Notify(ctx, msg.Method, msg.Params)
-	}
 }
 
 // stdioStream implements jsonrpc2.Stream using stdin/stdout
