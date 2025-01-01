@@ -13,66 +13,142 @@ func TestMessage_Validate(t *testing.T) {
 		message types.Message
 		wantErr bool
 	}{
+		// Request Messages
 		{
-			name: "Valid request",
+			name: "Valid request with numeric ID",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.ID{Num: 1, IsString: false},
-				Method:  "someMethod",
+				ID:      &types.ID{Num: 1},
+				Method:  "test/method",
+				Params:  jsonPtr(`{"key":"value"}`),
 			},
 			wantErr: false,
 		},
 		{
-			name: "Valid notification (no ID)",
+			name: "Valid request with string ID",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				Method:  "notify/something",
+				ID:      &types.ID{Str: "abc", IsString: true},
+				Method:  "test/method",
 			},
 			wantErr: false,
 		},
 		{
-			name: "Valid response (result)",
+			name: "Invalid request - missing method",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.ID{Num: 2, IsString: false},
-				Result:  jsonPtr(`{"ok":true}`),
+				ID:      &types.ID{Num: 1},
+				Params:  jsonPtr(`{}`),
+			},
+			wantErr: true,
+		},
+
+		// Notification Messages
+		{
+			name: "Valid notification",
+			message: types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				Method:  "test/notify",
+				Params:  jsonPtr(`{"event":"something"}`),
 			},
 			wantErr: false,
 		},
 		{
-			name: "Invalid: request with result",
+			name: "Invalid notification - has ID",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.ID{Num: 3, IsString: false},
-				Method:  "badRequest",
-				Result:  jsonPtr(`{"some":"thing"}`),
+				ID:      &types.ID{Num: 1},
+				Method:  "test/notify",
+			},
+			wantErr: true,
+		},
+
+		// Response Messages
+		{
+			name: "Valid response with result",
+			message: types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				ID:      &types.ID{Num: 1},
+				Result:  jsonPtr(`{"status":"success"}`),
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid error response",
+			message: types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				ID:      &types.ID{Num: 1},
+				Error: &types.ErrorResponse{
+					Code:    types.InvalidParams,
+					Message: "invalid parameters",
+					Data:    map[string]string{"field": "age"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid response - missing ID",
+			message: types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				Result:  jsonPtr(`{"status":"success"}`),
 			},
 			wantErr: true,
 		},
 		{
-			name: "Invalid: response with both result and error",
+			name: "Invalid response - both result and error",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.ID{Num: 4, IsString: false},
-				Result:  jsonPtr(`{"some":"thing"}`),
-				Error:   &types.ErrorResponse{Code: types.InternalError, Message: "oops"},
+				ID:      &types.ID{Num: 1},
+				Result:  jsonPtr(`{"status":"success"}`),
+				Error: &types.ErrorResponse{
+					Code:    types.InvalidParams,
+					Message: "invalid parameters",
+				},
+			},
+			wantErr: true,
+		},
+
+		// Version Tests
+		{
+			name: "Invalid jsonrpc version",
+			message: types.Message{
+				JSONRPC: "1.0",
+				Method:  "test/method",
 			},
 			wantErr: true,
 		},
 		{
-			name: "Invalid: no method, no result, no error, no ID",
+			name: "Missing jsonrpc version",
+			message: types.Message{
+				Method: "test/method",
+			},
+			wantErr: true,
+		},
+
+		// Edge Cases
+		{
+			name: "Empty message",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
+			},
+			wantErr: true,
+		},
+		{
+			name: "Request with invalid JSON in params",
+			message: types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				Method:  "test/method",
+				Params:  jsonPtr(`invalid json`),
 			},
 			wantErr: true,
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			err := tc.message.Validate()
-			if (err != nil) != tc.wantErr {
-				t.Fatalf("Validate() error = %v, wantErr=%v", err, tc.wantErr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.message.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

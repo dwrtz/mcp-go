@@ -43,6 +43,11 @@ func (r *MessageRouter) Handle(ctx context.Context, msg *types.Message) {
 		return
 	}
 
+	if err := msg.Validate(); err != nil {
+		r.logger.Logf("Invalid message: %v", err)
+		return
+	}
+
 	// Route based on message type
 	select {
 	case <-r.done:
