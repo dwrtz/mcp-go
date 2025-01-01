@@ -70,13 +70,14 @@ func TestPingPong(t *testing.T) {
 		return &types.Message{
 			JSONRPC: types.JSONRPCVersion,
 			ID:      msg.ID,
+			Method:  "pong",
 			Result:  rawJSON(`{"status":"ok"}`),
 		}, nil
 	}))
 
 	// Register ping response handler on client
-	cli.RegisterHandler("ping", transport.MessageHandlerFunc(func(ctx context.Context, msg *types.Message) (*types.Message, error) {
-		logger.Logf("Client handling ping response")
+	cli.RegisterHandler("pong", transport.MessageHandlerFunc(func(ctx context.Context, msg *types.Message) (*types.Message, error) {
+		logger.Logf("Client handling pong response")
 		// Got successful ping response
 		defer wg.Done()
 		return nil, nil
