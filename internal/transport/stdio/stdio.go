@@ -180,35 +180,6 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 		return
 	}
 
-	// Handle the message
-	t.logger.Logf("Handling message: %+v", msg)
-	resp, err := handler.Handle(ctx, msg)
-	if err != nil {
-		t.logger.Logf("Error handling message: %v", err)
-		if !req.Notif {
-			// Convert to JSON-RPC error if needed
-			var rpcErr *jsonrpc2.Error
-			if e, ok := err.(*jsonrpc2.Error); ok {
-				rpcErr = e
-			} else {
-				rpcErr = &jsonrpc2.Error{
-					Code:    int64(types.InternalError),
-					Message: err.Error(),
-				}
-			}
-
-			if err := conn.ReplyWithError(ctx, req.ID, rpcErr); err != nil {
-				t.logger.Logf("Failed to send error response: %v", err)
-			}
-		}
-		return
-	}
-
-	// Send response if this was a request (not a notification) and there is a response
-	if resp != nil && !req.Notif {
-		t.logger.Logf("Sending response: %+v", resp)
-		if err := conn.Reply(ctx, req.ID, resp.Result); err != nil {
-			t.logger.Logf("Failed to send response: %v", err)
-		}
-	}
+	// Route the message to handler channels
+	handler.Handle(ctx, msg)
 }

@@ -2,59 +2,91 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 
+	"github.com/dwrtz/mcp-go/internal/message"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
 type Server struct {
+	*message.MessageRouter
 	transport transport.Transport
-	handlers  map[string]transport.MessageHandlerFunc
-	mu        sync.RWMutex
-	logger    transport.Logger
+
+	// Lifecycle management
+	startOnce sync.Once
+	closeOnce sync.Once
 }
 
-func New(t transport.Transport, logger transport.Logger) *Server {
+func NewServer(t transport.Transport, logger transport.Logger) *Server {
 	s := &Server{
-		transport: t,
-		handlers:  make(map[string]transport.MessageHandlerFunc),
-		logger:    logger,
+		MessageRouter: message.NewMessageRouter(logger),
+		transport:     t,
 	}
-
-	// Set ourselves as the transport's message handler
 	t.SetHandler(s)
-
 	return s
 }
 
-// Handle implements transport.MessageHandler
-func (s *Server) Handle(ctx context.Context, msg *types.Message) (*types.Message, error) {
-	s.mu.RLock()
-	handler, ok := s.handlers[msg.Method]
-	s.mu.RUnlock()
+// Start begins processing messages
+func (s *Server) Start(ctx context.Context) error {
+	var startErr error
+	s.startOnce.Do(func() {
+		startErr = s.transport.Start(ctx)
+	})
+	return startErr
+}
 
-	if !ok {
-		return nil, types.NewError(types.MethodNotFound, "no handler registered for method: "+msg.Method)
+// Close shuts down the server
+func (s *Server) Close() error {
+	var closeErr error
+	s.closeOnce.Do(func() {
+		s.MessageRouter.Close()
+		closeErr = s.transport.Close()
+	})
+	return closeErr
+}
+
+// SendResponse sends a response to a request
+func (s *Server) SendResponse(ctx context.Context, reqID types.ID, result interface{}, err error) error {
+	msg := &types.Message{
+		JSONRPC: types.JSONRPCVersion,
+		ID:      &reqID,
 	}
 
-	return handler(ctx, msg)
-}
+	if err != nil {
+		if mcpErr, ok := err.(*types.ErrorResponse); ok {
+			msg.Error = mcpErr
+		} else {
+			msg.Error = types.NewError(types.InternalError, err.Error())
+		}
+	} else if result != nil {
+		data, err := json.Marshal(result)
+		if err != nil {
+			return err
+		}
+		raw := json.RawMessage(data)
+		msg.Result = &raw
+	}
 
-func (s *Server) RegisterHandler(method string, handler transport.MessageHandlerFunc) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.handlers[method] = handler
-}
-
-func (s *Server) Send(ctx context.Context, msg *types.Message) error {
 	return s.transport.Send(ctx, msg)
 }
 
-func (s *Server) Start(ctx context.Context) error {
-	return s.transport.Start(ctx)
-}
+// SendNotification sends a notification to the client
+func (s *Server) SendNotification(ctx context.Context, method string, params interface{}) error {
+	msg := &types.Message{
+		JSONRPC: types.JSONRPCVersion,
+		Method:  method,
+	}
 
-func (s *Server) Stop() error {
-	return s.transport.Close()
+	if params != nil {
+		data, err := json.Marshal(params)
+		if err != nil {
+			return err
+		}
+		raw := json.RawMessage(data)
+		msg.Params = &raw
+	}
+
+	return s.transport.Send(ctx, msg)
 }

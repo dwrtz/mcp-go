@@ -6,12 +6,11 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// MessageHandler handles incoming MCP messages
+// MessageHandler handles incoming MCP messages by routing them to appropriate channels
 type MessageHandler interface {
-	Handle(ctx context.Context, msg *types.Message) (*types.Message, error)
+	// Handle processes an incoming message
+	Handle(ctx context.Context, msg *types.Message)
 }
-
-type MessageHandlerFunc func(context.Context, *types.Message) (*types.Message, error)
 
 // Transport defines the interface for MCP message transport
 type Transport interface {

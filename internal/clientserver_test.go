@@ -11,17 +11,8 @@ import (
 	"github.com/dwrtz/mcp-go/internal/client"
 	"github.com/dwrtz/mcp-go/internal/server"
 	"github.com/dwrtz/mcp-go/internal/testutil"
-	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
-	"github.com/dwrtz/mcp-go/pkg/types"
 )
-
-// nopWriteCloser wraps an io.Writer and provides a no-op Close method
-type nopWriteCloser struct {
-	io.Writer
-}
-
-func (nopWriteCloser) Close() error { return nil }
 
 func TestPingPong(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
@@ -32,20 +23,14 @@ func TestPingPong(t *testing.T) {
 	clientStdinR, clientStdinW := io.Pipe()
 	clientStdoutR, clientStdoutW := io.Pipe()
 
-	// Wire up pipes so server's stdin is client's stdout and vice versa
+	// Wire up pipes
 	go func() {
 		defer serverStdinW.Close()
-		_, err := io.Copy(serverStdinW, clientStdoutR)
-		if err != nil {
-			logger.Logf("Server stdin copy error: %v", err)
-		}
+		io.Copy(serverStdinW, clientStdoutR)
 	}()
 	go func() {
 		defer clientStdinW.Close()
-		_, err := io.Copy(clientStdinW, serverStdoutR)
-		if err != nil {
-			logger.Logf("Client stdin copy error: %v", err)
-		}
+		io.Copy(clientStdinW, serverStdoutR)
 	}()
 
 	// Create transports
@@ -53,35 +38,35 @@ func TestPingPong(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := server.New(serverTransport, logger)
-	cli := client.New(clientTransport, logger)
+	srv := server.NewServer(serverTransport, logger)
+	cli := client.NewClient(clientTransport, logger)
 
-	// Context with timeout for the test
+	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Track ping completion
+	// Start server handler
 	var wg sync.WaitGroup
 	wg.Add(1)
-
-	// Register ping handler on server
-	srv.RegisterHandler("ping", transport.MessageHandlerFunc(func(ctx context.Context, msg *types.Message) (*types.Message, error) {
-		logger.Logf("Server handling ping request")
-		return &types.Message{
-			JSONRPC: types.JSONRPCVersion,
-			ID:      msg.ID,
-			Method:  "pong",
-			Result:  rawJSON(`{"status":"ok"}`),
-		}, nil
-	}))
-
-	// Register ping response handler on client
-	cli.RegisterHandler("pong", transport.MessageHandlerFunc(func(ctx context.Context, msg *types.Message) (*types.Message, error) {
-		logger.Logf("Client handling pong response")
-		// Got successful ping response
+	go func() {
 		defer wg.Done()
-		return nil, nil
-	}))
+		for {
+			select {
+			case req := <-srv.Requests:
+				if req.Method == "ping" {
+					logger.Logf("Server received ping, sending response")
+					err := srv.SendResponse(ctx, *req.ID, map[string]string{"status": "ok"}, nil)
+					if err != nil {
+						logger.Logf("Error sending response: %v", err)
+					}
+				}
+			case <-srv.Done():
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 
 	// Start server and client
 	logger.Logf("Starting server...")
@@ -94,45 +79,25 @@ func TestPingPong(t *testing.T) {
 		t.Fatalf("client.Start() error: %v", err)
 	}
 
-	// Give transports a moment to initialize
-	time.Sleep(200 * time.Millisecond)
-
-	// Create and send ping request
-	logger.Logf("Sending ping...")
-	pingMsg := &types.Message{
-		JSONRPC: types.JSONRPCVersion,
-		ID:      &types.ID{Num: 1},
-		Method:  "ping",
+	// Send ping request
+	logger.Logf("Sending ping request...")
+	resp, err := cli.SendRequest(ctx, "ping", nil)
+	if err != nil {
+		t.Fatalf("SendRequest error: %v", err)
 	}
 
-	if err := cli.Send(ctx, pingMsg); err != nil {
-		t.Fatalf("failed to send ping: %v", err)
+	// Verify response
+	var result map[string]string
+	if err := json.Unmarshal(*resp.Result, &result); err != nil {
+		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
 
-	// Wait for completion or timeout
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		logger.Logf("Test completed successfully")
-		// Clean up
-		if err := cli.Stop(); err != nil {
-			logger.Logf("Warning: client.Stop() error: %v", err)
-		}
-		if err := srv.Stop(); err != nil {
-			logger.Logf("Warning: server.Stop() error: %v", err)
-		}
-	case <-ctx.Done():
-		t.Fatalf("test timed out: %v\nLog output:\n%s", ctx.Err(), logger.String())
+	if result["status"] != "ok" {
+		t.Errorf("Expected status 'ok', got '%s'", result["status"])
 	}
-}
 
-// Helper for creating raw JSON messages
-func rawJSON(s string) *json.RawMessage {
-	raw := json.RawMessage(s)
-	return &raw
+	// Clean up
+	cli.Close()
+	srv.Close()
+	wg.Wait()
 }
