@@ -88,11 +88,36 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 	if msg.Method != "" {
 		// This is a request or notification
 		if msg.ID != nil {
-			// Request
-			var result interface{}
-			return conn.Call(ctx, msg.Method, msg.Params, &result)
+			// This is a request - we need to handle the response
+			var rawResult json.RawMessage
+			err := conn.Call(ctx, msg.Method, msg.Params, &rawResult)
+			if err != nil {
+				// Convert jsonrpc2.Error to types.ErrorResponse if needed
+				if rpcErr, ok := err.(*jsonrpc2.Error); ok {
+					return types.NewError(int(rpcErr.Code), rpcErr.Message, rpcErr.Data)
+				}
+				return err
+			}
+
+			// Get the handler to process the response
+			t.mu.Lock()
+			handler := t.handler
+			t.mu.Unlock()
+
+			if handler != nil {
+				// Create response message
+				response := &types.Message{
+					JSONRPC: types.JSONRPCVersion,
+					ID:      msg.ID,
+					Result:  &rawResult,
+				}
+
+				// Route the response through the handler
+				handler.Handle(ctx, response)
+			}
+			return nil
 		}
-		// Notification
+		// This is a notification
 		return conn.Notify(ctx, msg.Method, msg.Params)
 	}
 

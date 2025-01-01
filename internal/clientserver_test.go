@@ -95,6 +95,7 @@ func TestPingPong(t *testing.T) {
 	if result["status"] != "ok" {
 		t.Errorf("Expected status 'ok', got '%s'", result["status"])
 	}
+	logger.Logf("Client received expected response")
 
 	// Clean up
 	cli.Close()
