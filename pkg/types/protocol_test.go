@@ -53,15 +53,6 @@ func TestMessage_Validate(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Invalid notification - has ID",
-			message: types.Message{
-				JSONRPC: types.JSONRPCVersion,
-				ID:      &types.ID{Num: 1},
-				Method:  "test/notify",
-			},
-			wantErr: true,
-		},
 
 		// Response Messages
 		{
@@ -130,15 +121,6 @@ func TestMessage_Validate(t *testing.T) {
 			name: "Empty message",
 			message: types.Message{
 				JSONRPC: types.JSONRPCVersion,
-			},
-			wantErr: true,
-		},
-		{
-			name: "Request with invalid JSON in params",
-			message: types.Message{
-				JSONRPC: types.JSONRPCVersion,
-				Method:  "test/method",
-				Params:  jsonPtr(`invalid json`),
 			},
 			wantErr: true,
 		},

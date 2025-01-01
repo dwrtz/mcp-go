@@ -132,10 +132,19 @@ func (m *Message) Validate() error {
 		if m.Result != nil || m.Error != nil {
 			return errors.New("request/notification cannot have result or error")
 		}
+		// Notifications should not have an ID
+		if m.ID == nil {
+			// This is a notification
+			return nil
+		}
+		// This is a request
 		return nil
 	}
 
-	// Response must have either result or error, not both
+	// Response must have an ID and either result or error, not both
+	if m.ID == nil {
+		return errors.New("response must have an ID")
+	}
 	if m.Result != nil && m.Error != nil {
 		return errors.New("response cannot have both result and error")
 	}
