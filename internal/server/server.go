@@ -35,9 +35,7 @@ func (s *Server) Start(ctx context.Context) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "server transport stopped: %v\n", err)
 		}
-		close(s.done)
 	}()
-	<-s.done
 	return nil
 }
 

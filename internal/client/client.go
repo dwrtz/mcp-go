@@ -70,20 +70,21 @@ func NewClient(t transport.Transport) *Client {
 
 // Start begins reading responses in a goroutine.
 func (c *Client) Start(ctx context.Context, pingID string) error {
-	// Set a handler that prints responses and closes if we get "ping"
+	// Set our handler
 	h := &clientHandler{
 		client: c,
 		pingID: pingID,
 	}
 	c.transport.SetHandler(h)
 
-	// Actually start reading in a goroutine
+	// Start the read loop in the background
 	go func() {
 		err := c.transport.Start(ctx)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "client transport stopped: %v\n", err)
 		}
 	}()
+
 	return nil
 }
 
