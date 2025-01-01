@@ -2,131 +2,59 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"sync"
 
-	"github.com/dwrtz/mcp-go/internal/router"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// Server handles incoming client connections and routes messages.
 type Server struct {
 	transport transport.Transport
-	router    *router.Router
-	done      chan struct{}
+	handlers  map[string]transport.MessageHandlerFunc
+	mu        sync.RWMutex
 	logger    transport.Logger
-	mu        sync.Mutex
-	closed    bool
 }
 
-// Option is a function that configures a Server
-type Option func(*Server)
-
-// WithLogger sets the logger for the server
-func WithLogger(logger transport.Logger) Option {
-	return func(s *Server) {
-		if logger == nil {
-			logger = transport.NoopLogger{}
-		}
-		s.logger = logger
-		s.router = router.New(router.WithLogger(logger))
-	}
-}
-
-// NewServer creates a new Server with the given transport and options
-func NewServer(t transport.Transport, opts ...Option) *Server {
+func New(t transport.Transport, logger transport.Logger) *Server {
 	s := &Server{
 		transport: t,
-		done:      make(chan struct{}),
-		logger:    transport.NoopLogger{},
+		handlers:  make(map[string]transport.MessageHandlerFunc),
+		logger:    logger,
 	}
 
-	// Apply options
-	for _, opt := range opts {
-		opt(s)
-	}
-
-	// Create router if not created by options
-	if s.router == nil {
-		s.router = router.New()
-	}
-
-	// Set router as transport handler
-	t.SetHandler(s.router)
+	// Set ourselves as the transport's message handler
+	t.SetHandler(s)
 
 	return s
 }
 
-// RegisterHandler registers a handler for a method
-func (s *Server) RegisterHandler(method string, handler router.HandlerFunc) {
-	s.router.RegisterHandler(method, handler)
+// Handle implements transport.MessageHandler
+func (s *Server) Handle(ctx context.Context, msg *types.Message) (*types.Message, error) {
+	s.mu.RLock()
+	handler, ok := s.handlers[msg.Method]
+	s.mu.RUnlock()
+
+	if !ok {
+		return nil, types.NewError(types.MethodNotFound, "no handler registered for method: "+msg.Method)
+	}
+
+	return handler(ctx, msg)
 }
 
-// UnregisterHandler removes a handler for a method
-func (s *Server) UnregisterHandler(method string) {
-	s.router.UnregisterHandler(method)
-}
-
-// Start begins listening for client connections
-func (s *Server) Start(ctx context.Context) error {
-	if s.logger != nil {
-		s.logger.Logf("Server starting...")
-	}
-
-	go func() {
-		err := s.transport.Start(ctx)
-		if err != nil && s.logger != nil {
-			s.logger.Logf("Server transport stopped: %v", err)
-		}
-	}()
-
-	return nil
-}
-
-// Send sends a message through the transport
-func (s *Server) Send(ctx context.Context, method string, id types.ID, params interface{}) error {
-	msg := &types.Message{
-		JSONRPC: types.JSONRPCVersion,
-		ID:      &id,
-		Method:  method,
-	}
-
-	if params != nil {
-		// Convert params to json.RawMessage if provided
-		raw, err := json.Marshal(params)
-		if err != nil {
-			return fmt.Errorf("failed to marshal params: %w", err)
-		}
-		rawMsg := json.RawMessage(raw)
-		msg.Params = &rawMsg
-	}
-
-	if s.logger != nil {
-		s.logger.Logf("Server sending message: method=%s id=%v", method, id)
-	}
-
-	err := s.transport.Send(ctx, msg)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-	return nil
-}
-
-// Close shuts down the server and cleans up resources
-func (s *Server) Close() error {
+func (s *Server) RegisterHandler(method string, handler transport.MessageHandlerFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if s.closed {
-		return nil
-	}
-	s.closed = true
-	close(s.done)
-	return s.transport.Close()
+	s.handlers[method] = handler
 }
 
-func (s *Server) Done() <-chan struct{} {
-	return s.transport.Done()
+func (s *Server) Send(ctx context.Context, msg *types.Message) error {
+	return s.transport.Send(ctx, msg)
+}
+
+func (s *Server) Start(ctx context.Context) error {
+	return s.transport.Start(ctx)
+}
+
+func (s *Server) Stop() error {
+	return s.transport.Close()
 }
