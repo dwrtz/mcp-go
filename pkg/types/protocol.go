@@ -85,6 +85,23 @@ type ErrorResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
+// NewError creates a new ErrorResponse with the given code and message
+func NewError(code int, message string, data ...interface{}) *ErrorResponse {
+	err := &ErrorResponse{
+		Code:    code,
+		Message: message,
+	}
+	if len(data) > 0 {
+		err.Data = data[0]
+	}
+	return err
+}
+
+// Error implements the error interface.
+func (e *ErrorResponse) Error() string {
+	return e.Message
+}
+
 // Standard JSON-RPC error codes
 const (
 	ParseError     = -32700

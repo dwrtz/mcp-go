@@ -1,9 +1,8 @@
-// internal/clientserver_test.go
-
 package test
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 	"testing"
@@ -56,7 +55,7 @@ func TestPingPong(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Create and start server
+	// Create transports
 	serverTransport := stdio.NewStdioTransport(&stdio.Options{
 		Stdin:  serverStdinR,
 		Stdout: serverStdoutW,
@@ -65,10 +64,7 @@ func TestPingPong(t *testing.T) {
 			Logger: logger,
 		},
 	})
-	srv := server.NewServer(serverTransport)
-	serverTransport.SetHandler(&server.Handler{Logger: logger})
 
-	// Create and start client
 	clientTransport := stdio.NewStdioTransport(&stdio.Options{
 		Stdin:  clientStdinR,
 		Stdout: clientStdoutW,
@@ -77,7 +73,35 @@ func TestPingPong(t *testing.T) {
 			Logger: logger,
 		},
 	})
-	cli := client.NewClient(clientTransport)
+
+	// Create server and client with loggers
+	srv := server.NewServer(serverTransport, server.WithLogger(logger))
+	cli := client.NewClient(clientTransport, client.WithLogger(logger))
+
+	// Use WaitGroup to track completion
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// Register ping handler on server
+	srv.RegisterHandler("ping", func(ctx context.Context, msg *types.Message) (*types.Message, error) {
+		logger.Logf("Server handling ping request")
+		return &types.Message{
+			JSONRPC: types.JSONRPCVersion,
+			ID:      msg.ID,
+			Result:  rawJSON(`{"status":"ok"}`),
+		}, nil
+	})
+
+	// Register ping response handler on client
+	cli.RegisterHandler("ping", func(ctx context.Context, msg *types.Message) (*types.Message, error) {
+		logger.Logf("Client handling ping response")
+		if msg.Result != nil {
+			// Got successful ping response, trigger shutdown
+			defer cli.Close()
+			defer wg.Done()
+		}
+		return nil, nil
+	})
 
 	// Start server first
 	logger.Logf("Starting server...")
@@ -85,30 +109,19 @@ func TestPingPong(t *testing.T) {
 		t.Fatalf("server.Start() error: %v", err)
 	}
 
-	// Use WaitGroup to track completion
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	// Start client with handler
+	// Start client
 	logger.Logf("Starting client...")
-	pingID := types.ID{Num: 1, IsString: false}
-	if err := cli.Start(ctx, pingID); err != nil {
+	if err := cli.Start(ctx); err != nil {
 		t.Fatalf("client.Start() error: %v", err)
 	}
-
-	// Listen for the client to close once "ping" is done
-	go func() {
-		defer wg.Done()
-		<-cli.Done()
-		logger.Logf("Client done channel closed")
-	}()
 
 	// Give transports a moment to initialize
 	time.Sleep(200 * time.Millisecond)
 
 	// Send ping
 	logger.Logf("Sending ping...")
-	if err := cli.Ping(ctx, pingID); err != nil {
+	pingID := types.ID{Num: 1, IsString: false}
+	if err := cli.Send(ctx, "ping", pingID, nil); err != nil {
 		t.Fatalf("failed to send ping: %v", err)
 	}
 
@@ -132,4 +145,9 @@ func TestPingPong(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatalf("test timed out: %v\nLog output:\n%s", ctx.Err(), logger.String())
 	}
+}
+
+func rawJSON(s string) *json.RawMessage {
+	raw := json.RawMessage(s)
+	return &raw
 }
