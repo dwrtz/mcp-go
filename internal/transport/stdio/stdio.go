@@ -2,6 +2,7 @@ package stdio
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 
@@ -10,18 +11,45 @@ import (
 	"github.com/sourcegraph/jsonrpc2"
 )
 
+// stdioStream implements jsonrpc2.Stream using stdin/stdout
+type stdioStream struct {
+	in  io.ReadCloser
+	out io.WriteCloser
+}
+
+func (s stdioStream) Read(p []byte) (int, error) {
+	return s.in.Read(p)
+}
+
+func (s stdioStream) Write(p []byte) (int, error) {
+	return s.out.Write(p)
+}
+
+func (s stdioStream) Close() error {
+	errIn := s.in.Close()
+	errOut := s.out.Close()
+	if errIn != nil {
+		return errIn
+	}
+	return errOut
+}
+
 type StdioTransport struct {
 	handler transport.MessageHandler
 	conn    *jsonrpc2.Conn
 	done    chan struct{}
 	mu      sync.Mutex
 	logger  transport.Logger
+	stdin   io.ReadCloser
+	stdout  io.WriteCloser
 }
 
 func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser, logger transport.Logger) *StdioTransport {
 	return &StdioTransport{
 		done:   make(chan struct{}),
 		logger: logger,
+		stdin:  stdin,
+		stdout: stdout,
 	}
 }
 
@@ -62,7 +90,7 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 		if msg.ID != nil {
 			// Request
 			var result interface{}
-			return conn.Call(ctx, msg.Method, msg.Params, &result, jsonrpc2.PickID(*msg.ID))
+			return conn.Call(ctx, msg.Method, msg.Params, &result)
 		}
 		// Notification
 		return conn.Notify(ctx, msg.Method, msg.Params)
@@ -70,10 +98,21 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 
 	// This is a response
 	if msg.Error != nil {
+		// Convert error data to RawMessage if present
+		var rawData *json.RawMessage
+		if msg.Error.Data != nil {
+			data, err := json.Marshal(msg.Error.Data)
+			if err != nil {
+				return err
+			}
+			raw := json.RawMessage(data)
+			rawData = &raw
+		}
+
 		return conn.ReplyWithError(ctx, *msg.ID, &jsonrpc2.Error{
-			Code:    msg.Error.Code,
+			Code:    int64(msg.Error.Code),
 			Message: msg.Error.Message,
-			Data:    msg.Error.Data,
+			Data:    rawData,
 		})
 	}
 	return conn.Reply(ctx, *msg.ID, msg.Result)
@@ -119,7 +158,7 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 		Method:  req.Method,
 		Params:  req.Params,
 	}
-	if !req.ID.IsNotify() {
+	if !req.Notif {
 		msg.ID = &req.ID
 	}
 
@@ -129,9 +168,9 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 	t.mu.Unlock()
 
 	if handler == nil {
-		if !req.ID.IsNotify() {
+		if !req.Notif {
 			err := conn.ReplyWithError(ctx, req.ID, &jsonrpc2.Error{
-				Code:    types.MethodNotFound,
+				Code:    int64(types.MethodNotFound),
 				Message: "no handler registered",
 			})
 			if err != nil {
@@ -144,14 +183,14 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 	// Handle the message
 	resp, err := handler.Handle(ctx, msg)
 	if err != nil {
-		if !req.ID.IsNotify() {
+		if !req.Notif {
 			// Convert to JSON-RPC error if needed
 			var rpcErr *jsonrpc2.Error
 			if e, ok := err.(*jsonrpc2.Error); ok {
 				rpcErr = e
 			} else {
 				rpcErr = &jsonrpc2.Error{
-					Code:    types.InternalError,
+					Code:    int64(types.InternalError),
 					Message: err.Error(),
 				}
 			}
@@ -164,7 +203,7 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 	}
 
 	// Send response if this was a request (not a notification) and there is a response
-	if resp != nil && !req.ID.IsNotify() {
+	if resp != nil && !req.Notif {
 		if err := conn.Reply(ctx, req.ID, resp.Result); err != nil {
 			t.logger.Logf("Failed to send response: %v", err)
 		}
