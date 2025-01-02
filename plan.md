@@ -64,55 +64,91 @@ mcp-go/
 Focus on implementing the basic protocol infrastructure and message handling.
 
 #### Tasks
-- [ ] Define core protocol types in pkg/types
-  - [ ] JSON-RPC message structures
-  - [ ] Request/Response types
-  - [ ] Error types and codes
+- [x] Define core protocol types in pkg/types
+  - [x] JSON-RPC message structures
+  - [x] Request/Response types
+  - [x] Error types and codes
   - [ ] Test serialization/deserialization
-  - [ ] Test validation of protocol types
+  - [x] Test validation of protocol types
 
-- [ ] Implement transport layer in internal/transport
-  - [ ] stdio transport
-  - [ ] HTTP/SSE transport
-  - [ ] Transport interface definition
+- [x] Implement transport layer in internal/transport
+  - [x] stdio transport
+  - [ ] HTTP/SSE transport (low priority)
+  - [x] Transport interface definition
   - [ ] Test connection handling
   - [ ] Test message framing
   - [ ] Test error conditions
 
-- [ ] Create basic client/server infrastructure
-  - [ ] Connection management
-  - [ ] Message routing
-  - [ ] Basic error handling
-  - [ ] Test connection lifecycle
-  - [ ] Test message routing
+- [x] Create basic client/server infrastructure
+  - [x] Connection management
+  - [x] Message routing
+  - [x] Basic error handling
+  - [x] Test connection lifecycle
+  - [x] Test message routing
   - [ ] Test error propagation
 
-### Phase 2: Protocol Lifecycle and Session Management
-Implement initialization, capability negotiation, and session management across both client and server implementations.
+## Phase 2: Protocol Lifecycle Management
+Focus on implementing the essential initialization and session management components required by the MCP specification.
 
-#### Tasks
-- [ ] Implement initialization protocol
-  - [ ] Client initialization request
-  - [ ] Server initialization response
-  - [ ] Version negotiation
-  - [ ] Capability negotiation
-  - [ ] Test initialization flow
-  - [ ] Test version mismatches
-  - [ ] Test capability negotiation
+### Required Components
 
-- [ ] Add session management
-  - [ ] Session state tracking
-  - [ ] Graceful shutdown
-  - [ ] Ping/pong implementation
-  - [ ] Test session lifecycle
-  - [ ] Test connection timeouts
-  - [ ] Test ping/pong mechanisms
+#### Initialize Protocol
+- [ ] Client initialization request
+  - [ ] Implement request with protocol version, capabilities, client info
+  - [ ] Support for sending only initialize/ping before initialized
+  - [ ] Tests for request creation and validation
 
-- [ ] Implement utilities
-  - [ ] Progress tracking
-  - [ ] Cancellation support
-  - [ ] Test progress notifications
-  - [ ] Test cancellation handling
+- [ ] Server initialization response
+  - [ ] Protocol version negotiation
+  - [ ] Server capabilities and info
+  - [ ] Tests for response handling
+
+- [ ] Client initialized notification
+  - [ ] Implementation of notification
+  - [ ] Tests for notification flow
+
+#### Session Management
+- [ ] Basic session state
+  - [ ] Track initialized vs uninitialized state
+  - [ ] Enforce message restrictions based on state
+  - [ ] Tests for state transitions
+
+- [ ] Graceful shutdown
+  - [ ] Clean transport shutdown
+  - [ ] Resource cleanup
+  - [ ] Tests for shutdown scenarios
+
+#### Error Handling
+- [ ] Version mismatch handling
+  - [ ] Version comparison logic
+  - [ ] Error response generation
+  - [ ] Tests for version negotiation failures
+
+- [ ] State violation handling
+  - [ ] Error responses for out-of-order messages
+  - [ ] Tests for protocol violations
+
+### Future Enhancements (Deferred)
+The following components are defined in the spec but not required for basic compliance:
+
+- Ping/pong mechanism
+- Progress tracking
+- Request cancellation
+- Complex session state machines
+- Advanced capability negotiation
+
+### Testing Strategy
+
+#### Unit Tests
+- Test message validation
+- Test version negotiation
+- Test state transitions
+- Test error conditions
+
+#### Integration Tests
+- End-to-end initialization flow
+- Shutdown scenarios
+- Error handling and recovery
 
 ### Phase 3: Server Features
 Implement the core server-side features defined in the spec.
