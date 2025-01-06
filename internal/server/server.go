@@ -5,13 +5,11 @@ import (
 	"encoding/json"
 	"sync"
 
-	"github.com/dwrtz/mcp-go/internal/message"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
 type Server struct {
-	*message.MessageRouter
 	transport transport.Transport
 
 	// Lifecycle management
@@ -19,13 +17,8 @@ type Server struct {
 	closeOnce sync.Once
 }
 
-func NewServer(t transport.Transport, logger transport.Logger) *Server {
-	s := &Server{
-		MessageRouter: message.NewMessageRouter(logger),
-		transport:     t,
-	}
-	t.SetHandler(s)
-	return s
+func NewServer(t transport.Transport) *Server {
+	return &Server{transport: t}
 }
 
 // Start begins processing messages
@@ -41,10 +34,21 @@ func (s *Server) Start(ctx context.Context) error {
 func (s *Server) Close() error {
 	var closeErr error
 	s.closeOnce.Do(func() {
-		s.MessageRouter.Close()
+		router := s.transport.GetRouter()
+		router.Close()
 		closeErr = s.transport.Close()
 	})
 	return closeErr
+}
+
+// GetRouter returns the message router
+func (s *Server) GetRouter() *transport.MessageRouter {
+	return s.transport.GetRouter()
+}
+
+// Logf logs a formatted message
+func (s *Server) Logf(format string, args ...interface{}) {
+	s.transport.Logf(format, args...)
 }
 
 // SendResponse sends a response to a request

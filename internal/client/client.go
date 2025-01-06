@@ -6,13 +6,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/dwrtz/mcp-go/internal/message"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
 type Client struct {
-	*message.MessageRouter
 	transport transport.Transport
 	nextID    uint64
 
@@ -21,13 +19,8 @@ type Client struct {
 	closeOnce sync.Once
 }
 
-func NewClient(t transport.Transport, logger transport.Logger) *Client {
-	c := &Client{
-		MessageRouter: message.NewMessageRouter(logger),
-		transport:     t,
-	}
-	t.SetHandler(c)
-	return c
+func NewClient(t transport.Transport) *Client {
+	return &Client{transport: t}
 }
 
 // Start begins processing messages
@@ -43,10 +36,19 @@ func (c *Client) Start(ctx context.Context) error {
 func (c *Client) Close() error {
 	var closeErr error
 	c.closeOnce.Do(func() {
-		c.MessageRouter.Close()
 		closeErr = c.transport.Close()
 	})
 	return closeErr
+}
+
+// GetRouter returns the message router
+func (c *Client) GetRouter() *transport.MessageRouter {
+	return c.transport.GetRouter()
+}
+
+// Logf logs a formatted message
+func (c *Client) Logf(format string, args ...interface{}) {
+	c.transport.Logf(format, args...)
 }
 
 // SendRequest sends a request and waits for the response
@@ -76,21 +78,22 @@ func (c *Client) SendRequest(ctx context.Context, method string, params interfac
 	}
 
 	// Wait for response
+	router := c.transport.GetRouter()
 	for {
 		select {
-		case resp := <-c.Responses:
+		case resp := <-router.Responses:
 			if resp.ID != nil && resp.ID.Num == id {
 				return resp, nil
 			}
 			// Not our response, put it back
 			select {
-			case c.Responses <- resp:
+			case router.Responses <- resp:
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-c.Done():
+		case <-router.Done():
 			return nil, types.NewError(types.InternalError, "client closed")
 		}
 	}

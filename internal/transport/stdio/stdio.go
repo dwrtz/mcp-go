@@ -35,17 +35,18 @@ func (s stdioStream) Close() error {
 }
 
 type StdioTransport struct {
-	handler transport.MessageHandler
-	conn    *jsonrpc2.Conn
-	done    chan struct{}
-	mu      sync.Mutex
-	logger  transport.Logger
-	stdin   io.ReadCloser
-	stdout  io.WriteCloser
+	router *transport.MessageRouter
+	conn   *jsonrpc2.Conn
+	done   chan struct{}
+	mu     sync.Mutex
+	logger transport.Logger
+	stdin  io.ReadCloser
+	stdout io.WriteCloser
 }
 
 func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser, logger transport.Logger) *StdioTransport {
 	return &StdioTransport{
+		router: transport.NewMessageRouter(logger),
 		done:   make(chan struct{}),
 		logger: logger,
 		stdin:  stdin,
@@ -78,10 +79,9 @@ func (t *StdioTransport) Start(ctx context.Context) error {
 
 func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 	t.mu.Lock()
-	conn := t.conn
-	t.mu.Unlock()
+	defer t.mu.Unlock()
 
-	if conn == nil {
+	if t.conn == nil {
 		return types.NewError(types.InternalError, "transport not started")
 	}
 
@@ -90,7 +90,7 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 		if msg.ID != nil {
 			// This is a request - we need to handle the response
 			var rawResult json.RawMessage
-			err := conn.Call(ctx, msg.Method, msg.Params, &rawResult)
+			err := t.conn.Call(ctx, msg.Method, msg.Params, &rawResult)
 			if err != nil {
 				// Convert jsonrpc2.Error to types.ErrorResponse if needed
 				if rpcErr, ok := err.(*jsonrpc2.Error); ok {
@@ -99,26 +99,20 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 				return err
 			}
 
-			// Get the handler to process the response
-			t.mu.Lock()
-			handler := t.handler
-			t.mu.Unlock()
-
-			if handler != nil {
-				// Create response message
-				response := &types.Message{
-					JSONRPC: types.JSONRPCVersion,
-					ID:      msg.ID,
-					Result:  &rawResult,
-				}
-
-				// Route the response through the handler
-				handler.Handle(ctx, response)
+			// Create response message
+			response := &types.Message{
+				JSONRPC: types.JSONRPCVersion,
+				ID:      msg.ID,
+				Result:  &rawResult,
 			}
+
+			// Route the response through the handler
+			t.router.Handle(ctx, response)
+
 			return nil
 		}
 		// This is a notification
-		return conn.Notify(ctx, msg.Method, msg.Params)
+		return t.conn.Notify(ctx, msg.Method, msg.Params)
 	}
 
 	// This is a response
@@ -134,19 +128,17 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 			rawData = &raw
 		}
 
-		return conn.ReplyWithError(ctx, *msg.ID, &jsonrpc2.Error{
+		return t.conn.ReplyWithError(ctx, *msg.ID, &jsonrpc2.Error{
 			Code:    int64(msg.Error.Code),
 			Message: msg.Error.Message,
 			Data:    rawData,
 		})
 	}
-	return conn.Reply(ctx, *msg.ID, msg.Result)
+	return t.conn.Reply(ctx, *msg.ID, msg.Result)
 }
 
-func (t *StdioTransport) SetHandler(handler transport.MessageHandler) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	t.handler = handler
+func (t *StdioTransport) GetRouter() *transport.MessageRouter {
+	return t.router
 }
 
 func (t *StdioTransport) Close() error {
@@ -169,14 +161,16 @@ func (t *StdioTransport) Done() <-chan struct{} {
 	return t.done
 }
 
+func (t *StdioTransport) Logf(format string, args ...interface{}) {
+	t.logger.Logf(format, args...)
+}
+
 // jsonRPCHandler implements jsonrpc2.Handler
 type jsonRPCHandler struct {
 	transport *StdioTransport
 }
 
 func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
-	t := h.transport
-
 	// Convert JSON-RPC request to MCP message
 	msg := &types.Message{
 		JSONRPC: types.JSONRPCVersion,
@@ -187,24 +181,6 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 		msg.ID = &req.ID
 	}
 
-	// Get handler (with mutex protection)
-	t.mu.Lock()
-	handler := t.handler
-	t.mu.Unlock()
-
-	if handler == nil {
-		if !req.Notif {
-			err := conn.ReplyWithError(ctx, req.ID, &jsonrpc2.Error{
-				Code:    int64(types.MethodNotFound),
-				Message: "no handler registered",
-			})
-			if err != nil {
-				t.logger.Logf("Failed to send error response: %v", err)
-			}
-		}
-		return
-	}
-
 	// Route the message to handler channels
-	handler.Handle(ctx, msg)
+	h.transport.router.Handle(ctx, msg)
 }

@@ -38,8 +38,8 @@ func TestPingPong(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := server.NewServer(serverTransport, logger)
-	cli := client.NewClient(clientTransport, logger)
+	srv := server.NewServer(serverTransport)
+	cli := client.NewClient(clientTransport)
 
 	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -48,11 +48,12 @@ func TestPingPong(t *testing.T) {
 	// Start server handler
 	var wg sync.WaitGroup
 	wg.Add(1)
+	srvRouter := srv.GetRouter()
 	go func() {
 		defer wg.Done()
 		for {
 			select {
-			case req := <-srv.Requests:
+			case req := <-srvRouter.Requests:
 				if req.Method == "ping" {
 					logger.Logf("Server received ping, sending response")
 					err := srv.SendResponse(ctx, *req.ID, map[string]string{"status": "ok"}, nil)
@@ -60,7 +61,7 @@ func TestPingPong(t *testing.T) {
 						logger.Logf("Error sending response: %v", err)
 					}
 				}
-			case <-srv.Done():
+			case <-srvRouter.Done():
 				return
 			case <-ctx.Done():
 				return
