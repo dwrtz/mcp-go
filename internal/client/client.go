@@ -10,9 +10,16 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
+// NotificationHandler handles MCP notifications
+type NotificationHandler func(ctx context.Context, params json.RawMessage)
+
 type Client struct {
 	transport transport.Transport
 	nextID    uint64
+
+	// Message handling
+	notificationHandlers map[string]NotificationHandler
+	handlerMu            sync.RWMutex // Protects notificationHandlers
 
 	// Lifecycle management
 	startOnce sync.Once
@@ -20,14 +27,31 @@ type Client struct {
 }
 
 func NewClient(t transport.Transport) *Client {
-	return &Client{transport: t}
+	return &Client{
+		transport:            t,
+		notificationHandlers: make(map[string]NotificationHandler),
+	}
+}
+
+// RegisterNotificationHandler registers a handler for a notification method
+func (c *Client) RegisterNotificationHandler(method string, handler NotificationHandler) {
+	c.handlerMu.Lock()
+	defer c.handlerMu.Unlock()
+	c.notificationHandlers[method] = handler
 }
 
 // Start begins processing messages
 func (c *Client) Start(ctx context.Context) error {
 	var startErr error
 	c.startOnce.Do(func() {
-		startErr = c.transport.Start(ctx)
+		// Start transport
+		if err := c.transport.Start(ctx); err != nil {
+			startErr = err
+			return
+		}
+
+		// Start message handling
+		go c.handleMessages(ctx)
 	})
 	return startErr
 }
@@ -116,4 +140,37 @@ func (c *Client) SendNotification(ctx context.Context, method string, params int
 	}
 
 	return c.transport.Send(ctx, msg)
+}
+
+// handleMessages processes incoming messages from the transport
+func (c *Client) handleMessages(ctx context.Context) {
+	router := c.transport.GetRouter()
+	for {
+		select {
+		case notif := <-router.Notifications:
+			// Handle notification in a goroutine
+			go c.handleNotification(ctx, notif)
+		case <-ctx.Done():
+			return
+		case <-router.Done():
+			return
+		}
+	}
+}
+
+func (c *Client) handleNotification(ctx context.Context, msg *types.Message) {
+	if msg.Params == nil {
+		c.Logf("Received notification without params: %s", msg.Method)
+		return
+	}
+
+	c.handlerMu.RLock()
+	handler, ok := c.notificationHandlers[msg.Method]
+	c.handlerMu.RUnlock()
+
+	if ok {
+		handler(ctx, *msg.Params)
+	} else {
+		c.Logf("No handler registered for notification method: %s", msg.Method)
+	}
 }

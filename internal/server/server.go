@@ -9,8 +9,19 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
+// RequestHandler handles MCP requests and returns a response
+type RequestHandler func(ctx context.Context, params json.RawMessage) (interface{}, error)
+
+// NotificationHandler handles MCP notifications
+type NotificationHandler func(ctx context.Context, params json.RawMessage)
+
 type Server struct {
 	transport transport.Transport
+
+	// Message handling
+	requestHandlers      map[string]RequestHandler
+	notificationHandlers map[string]NotificationHandler
+	handlerMu            sync.RWMutex // Protects both handler maps
 
 	// Lifecycle management
 	startOnce sync.Once
@@ -18,14 +29,39 @@ type Server struct {
 }
 
 func NewServer(t transport.Transport) *Server {
-	return &Server{transport: t}
+	return &Server{
+		transport:            t,
+		requestHandlers:      make(map[string]RequestHandler),
+		notificationHandlers: make(map[string]NotificationHandler),
+	}
+}
+
+// RegisterRequestHandler registers a handler for a request method
+func (s *Server) RegisterRequestHandler(method string, handler RequestHandler) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+	s.requestHandlers[method] = handler
+}
+
+// RegisterNotificationHandler registers a handler for a notification method
+func (s *Server) RegisterNotificationHandler(method string, handler NotificationHandler) {
+	s.handlerMu.Lock()
+	defer s.handlerMu.Unlock()
+	s.notificationHandlers[method] = handler
 }
 
 // Start begins processing messages
 func (s *Server) Start(ctx context.Context) error {
 	var startErr error
 	s.startOnce.Do(func() {
-		startErr = s.transport.Start(ctx)
+		// Start transport
+		if err := s.transport.Start(ctx); err != nil {
+			startErr = err
+			return
+		}
+
+		// Start message handling
+		go s.handleMessages(ctx)
 	})
 	return startErr
 }
@@ -93,4 +129,67 @@ func (s *Server) SendNotification(ctx context.Context, method string, params int
 	}
 
 	return s.transport.Send(ctx, msg)
+}
+
+// handleMessages processes incoming messages from the transport
+func (s *Server) handleMessages(ctx context.Context) {
+	router := s.transport.GetRouter()
+	for {
+		select {
+		case req := <-router.Requests:
+			// Handle request in a goroutine
+			go s.handleRequest(ctx, req)
+		case notif := <-router.Notifications:
+			// Handle notification in a goroutine
+			go s.handleNotification(ctx, notif)
+		case <-ctx.Done():
+			return
+		case <-router.Done():
+			return
+		}
+	}
+}
+
+func (s *Server) handleRequest(ctx context.Context, msg *types.Message) {
+	if msg.ID == nil {
+		s.Logf("Received request without ID: %s", msg.Method)
+		return
+	}
+
+	if msg.Params == nil {
+		err := types.NewError(types.InvalidParams, "missing params")
+		s.SendResponse(ctx, *msg.ID, nil, err)
+		return
+	}
+
+	s.handlerMu.RLock()
+	handler, ok := s.requestHandlers[msg.Method]
+	s.handlerMu.RUnlock()
+
+	if ok {
+		result, err := handler(ctx, *msg.Params)
+		s.SendResponse(ctx, *msg.ID, result, err)
+		return
+	}
+
+	// Method not found
+	err := types.NewError(types.MethodNotFound, "method not found: "+msg.Method)
+	s.SendResponse(ctx, *msg.ID, nil, err)
+}
+
+func (s *Server) handleNotification(ctx context.Context, msg *types.Message) {
+	if msg.Params == nil {
+		s.Logf("Received notification without params: %s", msg.Method)
+		return
+	}
+
+	s.handlerMu.RLock()
+	handler, ok := s.notificationHandlers[msg.Method]
+	s.handlerMu.RUnlock()
+
+	if ok {
+		handler(ctx, *msg.Params)
+	} else {
+		s.Logf("No handler registered for notification method: %s", msg.Method)
+	}
 }
