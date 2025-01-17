@@ -1,4 +1,4 @@
-package test
+package base
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dwrtz/mcp-go/internal/client"
-	"github.com/dwrtz/mcp-go/internal/server"
 	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -38,8 +36,8 @@ func TestPingPong(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := server.NewServer(serverTransport)
-	cli := client.NewClient(clientTransport)
+	srv := NewServer(serverTransport)
+	cli := NewClient(clientTransport)
 
 	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -109,8 +107,8 @@ func TestNotifications(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := server.NewServer(serverTransport)
-	cli := client.NewClient(clientTransport)
+	srv := NewServer(serverTransport)
+	cli := NewClient(clientTransport)
 
 	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
