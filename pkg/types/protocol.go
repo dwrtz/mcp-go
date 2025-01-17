@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -153,4 +154,35 @@ func (m *Message) Validate() error {
 	}
 
 	return nil
+}
+
+// UnmarshalResult unmarshals the result into the provided interface
+func (m *Message) UnmarshalResult(v interface{}) error {
+	if m.Result == nil {
+		return fmt.Errorf("no result to unmarshal")
+	}
+	return json.Unmarshal(*m.Result, v)
+}
+
+// InitializeRequest represents the initial request sent from client to server
+type InitializeRequest struct {
+	// The latest version of MCP that the client supports
+	ProtocolVersion string             `json:"protocolVersion"`
+	Capabilities    ClientCapabilities `json:"capabilities"`
+	ClientInfo      Implementation     `json:"clientInfo"`
+}
+
+// InitializeResult represents the server's response to initialization
+type InitializeResult struct {
+	// The version of MCP that the server will use
+	ProtocolVersion string             `json:"protocolVersion"`
+	Capabilities    ServerCapabilities `json:"capabilities"`
+	ServerInfo      Implementation     `json:"serverInfo"`
+	// Optional instructions for using the server
+	Instructions string `json:"instructions,omitempty"`
+}
+
+// InitializedNotification represents the notification sent after successful initialization
+type InitializedNotification struct {
+	Method string `json:"method"`
 }
