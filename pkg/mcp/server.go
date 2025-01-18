@@ -20,6 +20,8 @@ type Server struct {
 	roots     *server.RootsServer
 	resources *server.ResourcesServer
 	prompts   *server.PromptsServer
+	tools     *server.ToolsServer
+	sampling  *server.SamplingServer
 
 	// Server capabilities
 	capabilities types.ServerCapabilities
@@ -57,6 +59,22 @@ func WithPrompts() ServerOption {
 		s.capabilities.Prompts = &types.PromptsServerCapabilities{
 			ListChanged: true,
 		}
+	}
+}
+
+// WithTools enables tools functionality on the server
+func WithTools() ServerOption {
+	return func(s *Server) {
+		s.capabilities.Tools = &types.ToolsServerCapabilities{
+			ListChanged: true,
+		}
+	}
+}
+
+// WithSampling enables sampling functionality on the server
+func WithSampling() ServerOption {
+	return func(s *Server) {
+		s.capabilities.Sampling = &types.SamplingServerCapabilities{}
 	}
 }
 
@@ -107,6 +125,16 @@ func (s *Server) Prompts() *server.PromptsServer {
 	return s.prompts
 }
 
+// Tools returns the tools server if enabled
+func (s *Server) Tools() *server.ToolsServer {
+	return s.tools
+}
+
+// Sampling returns the sampling server if enabled
+func (s *Server) Sampling() *server.SamplingServer {
+	return s.sampling
+}
+
 // handleInitialize handles the initialize request from clients
 func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (interface{}, error) {
 	var req types.InitializeRequest
@@ -127,6 +155,15 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 
 	if s.capabilities.Prompts != nil {
 		s.prompts = server.NewPromptsServer(s.base)
+	}
+
+	if s.capabilities.Tools != nil {
+		s.tools = server.NewToolsServer(s.base)
+	}
+
+	// Initialize sampling server if client supports it
+	if req.Capabilities.Sampling != nil {
+		s.sampling = server.NewSamplingServer(s.base)
 	}
 
 	return &types.InitializeResult{

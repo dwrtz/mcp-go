@@ -19,6 +19,8 @@ type Client struct {
 	roots     *client.RootsClient
 	resources *client.ResourcesClient
 	prompts   *client.PromptsClient
+	tools     *client.ToolsClient
+	sampling  *client.SamplingClient
 
 	// Client capabilities
 	capabilities types.ClientCapabilities
@@ -76,6 +78,15 @@ func (c *Client) Initialize(ctx context.Context) error {
 		c.prompts = client.NewPromptsClient(c.base)
 	}
 
+	if result.Capabilities.Tools != nil {
+		c.tools = client.NewToolsClient(c.base)
+	}
+
+	// Initialize sampling client if we declared the capability
+	if c.capabilities.Sampling != nil {
+		c.sampling = client.NewSamplingClient(c.base)
+	}
+
 	// Send initialized notification
 	if err := c.base.SendNotification(ctx, methods.Initialized, nil); err != nil {
 		return fmt.Errorf("failed to send initialized notification: %w", err)
@@ -109,6 +120,16 @@ func (c *Client) SupportsPrompts() bool {
 	return c.prompts != nil
 }
 
+// SupportsTools returns whether the server supports tools functionality
+func (c *Client) SupportsTools() bool {
+	return c.tools != nil
+}
+
+// SupportsSampling returns whether the client supports sampling functionality
+func (c *Client) SupportsSampling() bool {
+	return c.sampling != nil
+}
+
 // Roots returns the roots client if the server supports it
 func (c *Client) Roots() *client.RootsClient {
 	return c.roots
@@ -122,4 +143,14 @@ func (c *Client) Resources() *client.ResourcesClient {
 // Prompts returns the prompts client if the server supports it
 func (c *Client) Prompts() *client.PromptsClient {
 	return c.prompts
+}
+
+// Tools returns the tools client if the server supports it
+func (c *Client) Tools() *client.ToolsClient {
+	return c.tools
+}
+
+// Sampling returns the sampling client if supported
+func (c *Client) Sampling() *client.SamplingClient {
+	return c.sampling
 }
