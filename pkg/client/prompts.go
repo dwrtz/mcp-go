@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -30,9 +31,19 @@ func (c *PromptsClient) List(ctx context.Context) ([]types.Prompt, error) {
 		return nil, err
 	}
 
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Check for nil result
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+
 	var result types.ListPromptsResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return result.Prompts, nil
@@ -51,9 +62,19 @@ func (c *PromptsClient) Get(ctx context.Context, name string, arguments map[stri
 		return nil, err
 	}
 
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Check for nil result
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+
 	var result types.GetPromptResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse prompt result: %w", err)
 	}
 
 	return &result, nil
