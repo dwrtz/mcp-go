@@ -17,7 +17,9 @@ type Server struct {
 	base *base.Server
 
 	// Feature-specific servers
-	roots *server.RootsServer
+	roots     *server.RootsServer
+	resources *server.ResourcesServer
+	prompts   *server.PromptsServer
 
 	// Server capabilities
 	capabilities types.ServerCapabilities
@@ -39,13 +41,32 @@ func WithRoots() ServerOption {
 	}
 }
 
+// WithResources enables resources functionality on the server
+func WithResources() ServerOption {
+	return func(s *Server) {
+		s.capabilities.Resources = &types.ResourcesServerCapabilities{
+			Subscribe:   true,
+			ListChanged: true,
+		}
+	}
+}
+
+// WithPrompts enables prompts functionality on the server
+func WithPrompts() ServerOption {
+	return func(s *Server) {
+		s.capabilities.Prompts = &types.PromptsServerCapabilities{
+			ListChanged: true,
+		}
+	}
+}
+
 // NewServer creates a new MCP server
 func NewServer(transport transport.Transport, opts ...ServerOption) *Server {
 	s := &Server{
 		base: base.NewServer(transport),
 		info: types.Implementation{
 			Name:    "mcp-go",
-			Version: "0.1.0", // TODO: Use version from build
+			Version: "0.1.0",
 		},
 	}
 
@@ -76,6 +97,16 @@ func (s *Server) Roots() *server.RootsServer {
 	return s.roots
 }
 
+// Resources returns the resources server if enabled
+func (s *Server) Resources() *server.ResourcesServer {
+	return s.resources
+}
+
+// Prompts returns the prompts server if enabled
+func (s *Server) Prompts() *server.PromptsServer {
+	return s.prompts
+}
+
 // handleInitialize handles the initialize request from clients
 func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (interface{}, error) {
 	var req types.InitializeRequest
@@ -91,6 +122,11 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 	// Initialize feature-specific servers based on capabilities
 	if s.capabilities.Resources != nil {
 		s.roots = server.NewRootsServer(s.base)
+		s.resources = server.NewResourcesServer(s.base)
+	}
+
+	if s.capabilities.Prompts != nil {
+		s.prompts = server.NewPromptsServer(s.base)
 	}
 
 	return &types.InitializeResult{

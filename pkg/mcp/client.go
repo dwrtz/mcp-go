@@ -16,7 +16,9 @@ type Client struct {
 	base *base.Client
 
 	// Feature-specific clients
-	roots *client.RootsClient
+	roots     *client.RootsClient
+	resources *client.ResourcesClient
+	prompts   *client.PromptsClient
 
 	// Client capabilities
 	capabilities types.ClientCapabilities
@@ -43,7 +45,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 		Capabilities:    c.capabilities,
 		ClientInfo: types.Implementation{
 			Name:    "mcp-go",
-			Version: "0.1.0", // TODO: Use version from build
+			Version: "0.1.0",
 		},
 	}
 
@@ -67,6 +69,11 @@ func (c *Client) Initialize(ctx context.Context) error {
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
 		c.roots = client.NewRootsClient(c.base)
+		c.resources = client.NewResourcesClient(c.base)
+	}
+
+	if result.Capabilities.Prompts != nil {
+		c.prompts = client.NewPromptsClient(c.base)
 	}
 
 	// Send initialized notification
@@ -92,7 +99,27 @@ func (c *Client) SupportsRoots() bool {
 	return c.roots != nil
 }
 
+// SupportsResources returns whether the server supports resources functionality
+func (c *Client) SupportsResources() bool {
+	return c.resources != nil
+}
+
+// SupportsPrompts returns whether the server supports prompts functionality
+func (c *Client) SupportsPrompts() bool {
+	return c.prompts != nil
+}
+
 // Roots returns the roots client if the server supports it
 func (c *Client) Roots() *client.RootsClient {
 	return c.roots
+}
+
+// Resources returns the resources client if the server supports it
+func (c *Client) Resources() *client.ResourcesClient {
+	return c.resources
+}
+
+// Prompts returns the prompts client if the server supports it
+func (c *Client) Prompts() *client.PromptsClient {
+	return c.prompts
 }
