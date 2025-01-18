@@ -87,6 +87,11 @@ func (c *Client) Close() error {
 	return c.base.Close()
 }
 
+// SupportsRoots returns whether the server supports roots functionality
+func (c *Client) SupportsRoots() bool {
+	return c.roots != nil
+}
+
 // Roots returns the roots client if the server supports it
 func (c *Client) Roots() *client.RootsClient {
 	return c.roots

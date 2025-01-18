@@ -32,6 +32,13 @@ func NewRootsServer(base *base.Server) *RootsServer {
 
 // SetRoots updates the list of available roots
 func (s *RootsServer) SetRoots(ctx context.Context, roots []types.Root) error {
+	// Validate all roots first
+	for _, root := range roots {
+		if err := root.Validate(); err != nil {
+			return err
+		}
+	}
+
 	s.mu.Lock()
 	s.roots = roots
 	s.mu.Unlock()
