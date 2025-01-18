@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -24,6 +25,16 @@ func (c *SamplingClient) CreateMessage(ctx context.Context, req *types.CreateMes
 	resp, err := c.base.SendRequest(ctx, methods.SampleCreate, req)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Check for nil result
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
 	}
 
 	var result types.CreateMessageResult

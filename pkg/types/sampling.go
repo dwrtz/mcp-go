@@ -1,5 +1,10 @@
 package types
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // ModelPreferences represents server preferences for model selection
 type ModelPreferences struct {
 	// Optional hints for model selection
@@ -31,14 +36,121 @@ type CreateMessageRequest struct {
 
 // CreateMessageResult represents the response from a sampling request
 type CreateMessageResult struct {
-	Role       Role        `json:"role"`
-	Content    interface{} `json:"content"` // Can be TextContent or ImageContent
-	Model      string      `json:"model"`
-	StopReason string      `json:"stopReason,omitempty"`
+	Role       Role           `json:"role"`
+	Content    MessageContent `json:"content"` // Using the same MessageContent interface from prompts
+	Model      string         `json:"model"`
+	StopReason string         `json:"stopReason,omitempty"`
 }
 
 // SamplingMessage represents a message in a sampling request
 type SamplingMessage struct {
-	Role    Role        `json:"role"`
-	Content interface{} `json:"content"` // Can be TextContent or ImageContent
+	Role    Role           `json:"role"`
+	Content MessageContent `json:"content"` // Using the same MessageContent interface
+}
+
+// Custom unmarshaling for SamplingMessage
+func (m *SamplingMessage) UnmarshalJSON(data []byte) error {
+	type Alias SamplingMessage
+	aux := &struct {
+		*Alias
+		Content json.RawMessage `json:"content"`
+	}{
+		Alias: (*Alias)(m),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	// Unmarshal content based on type
+	var contentType struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(aux.Content, &contentType); err != nil {
+		return err
+	}
+
+	switch contentType.Type {
+	case "text":
+		var text TextContent
+		if err := json.Unmarshal(aux.Content, &text); err != nil {
+			return err
+		}
+		m.Content = text
+	case "image":
+		var img ImageContent
+		if err := json.Unmarshal(aux.Content, &img); err != nil {
+			return err
+		}
+		m.Content = img
+	default:
+		return fmt.Errorf("unknown content type: %s", contentType.Type)
+	}
+
+	return nil
+}
+
+// Custom marshaling for SamplingMessage
+func (m SamplingMessage) MarshalJSON() ([]byte, error) {
+	type Alias SamplingMessage
+	return json.Marshal(&struct {
+		Alias
+		Content MessageContent `json:"content"`
+	}{
+		Alias:   (Alias)(m),
+		Content: m.Content,
+	})
+}
+
+// Custom unmarshaling for CreateMessageResult
+func (r *CreateMessageResult) UnmarshalJSON(data []byte) error {
+	type Alias CreateMessageResult
+	aux := &struct {
+		*Alias
+		Content json.RawMessage `json:"content"`
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	var contentType struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(aux.Content, &contentType); err != nil {
+		return err
+	}
+
+	switch contentType.Type {
+	case "text":
+		var text TextContent
+		if err := json.Unmarshal(aux.Content, &text); err != nil {
+			return err
+		}
+		r.Content = text
+	case "image":
+		var img ImageContent
+		if err := json.Unmarshal(aux.Content, &img); err != nil {
+			return err
+		}
+		r.Content = img
+	default:
+		return fmt.Errorf("unknown content type: %s", contentType.Type)
+	}
+
+	return nil
+}
+
+// Custom marshaling for CreateMessageResult
+func (r CreateMessageResult) MarshalJSON() ([]byte, error) {
+	type Alias CreateMessageResult
+	return json.Marshal(&struct {
+		Alias
+		Content MessageContent `json:"content"`
+	}{
+		Alias:   (Alias)(r),
+		Content: r.Content,
+	})
 }
