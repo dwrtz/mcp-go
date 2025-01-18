@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -30,9 +31,15 @@ func (c *RootsClient) List(ctx context.Context) ([]types.Root, error) {
 		return nil, err
 	}
 
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Parse response
 	var result types.ListRootsResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse roots list response: %w", err)
 	}
 
 	return result.Roots, nil
