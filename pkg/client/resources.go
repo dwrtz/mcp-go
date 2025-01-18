@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -30,9 +31,19 @@ func (c *ResourcesClient) List(ctx context.Context) ([]types.Resource, error) {
 		return nil, err
 	}
 
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Check for nil result
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+
 	var result types.ListResourcesResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return result.Resources, nil
@@ -50,9 +61,17 @@ func (c *ResourcesClient) Read(ctx context.Context, uri string) ([]interface{}, 
 		return nil, err
 	}
 
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+
 	var result types.ReadResourceResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return result.Contents, nil
@@ -69,9 +88,17 @@ func (c *ResourcesClient) ListTemplates(ctx context.Context) ([]types.ResourceTe
 		return nil, err
 	}
 
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
+	}
+
 	var result types.ListResourceTemplatesResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
 	return result.ResourceTemplates, nil
@@ -84,8 +111,16 @@ func (c *ResourcesClient) Subscribe(ctx context.Context, uri string) error {
 		URI:    uri,
 	}
 
-	_, err := c.base.SendRequest(ctx, methods.SubscribeResource, req)
-	return err
+	resp, err := c.base.SendRequest(ctx, methods.SubscribeResource, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return resp.Error
+	}
+
+	return nil
 }
 
 // Unsubscribe unsubscribes from updates for a specific resource
@@ -95,8 +130,16 @@ func (c *ResourcesClient) Unsubscribe(ctx context.Context, uri string) error {
 		URI:    uri,
 	}
 
-	_, err := c.base.SendRequest(ctx, methods.UnsubscribeResource, req)
-	return err
+	resp, err := c.base.SendRequest(ctx, methods.UnsubscribeResource, req)
+	if err != nil {
+		return err
+	}
+
+	if resp.Error != nil {
+		return resp.Error
+	}
+
+	return nil
 }
 
 // OnResourceUpdated registers a callback for resource update notifications
