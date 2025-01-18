@@ -7,15 +7,15 @@ import (
 	"time"
 
 	"github.com/dwrtz/mcp-go/internal/base"
+	"github.com/dwrtz/mcp-go/internal/mock"
 	"github.com/dwrtz/mcp-go/internal/testutil"
-	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTestResourcesClient(t *testing.T) (*ResourcesClient, *transport.MockTransport, context.Context, context.CancelFunc) {
+func setupTestResourcesClient(t *testing.T) (*ResourcesClient, *mock.MockTransport, context.Context, context.CancelFunc) {
 	logger := testutil.NewTestLogger(t)
-	mockTransport := transport.NewMockTransport(logger)
+	mockTransport := mock.NewMockTransport(logger)
 	baseClient := base.NewClient(mockTransport)
 	client := NewResourcesClient(baseClient)
 

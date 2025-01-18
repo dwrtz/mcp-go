@@ -1,16 +1,18 @@
-package transport
+package mock
 
 import (
 	"context"
 	"sync"
 
+	"github.com/dwrtz/mcp-go/internal/testutil"
+	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
 // MockTransport implements Transport for testing
 type MockTransport struct {
-	router *MessageRouter
-	logger Logger
+	router *transport.MessageRouter
+	logger *testutil.TestLogger
 	done   chan struct{}
 
 	// For inspecting what was sent
@@ -19,9 +21,9 @@ type MockTransport struct {
 }
 
 // NewMockTransport creates a new mock transport
-func NewMockTransport(logger Logger) *MockTransport {
+func NewMockTransport(logger *testutil.TestLogger) *MockTransport {
 	return &MockTransport{
-		router:       NewMessageRouter(logger),
+		router:       transport.NewMessageRouter(logger),
 		logger:       logger,
 		done:         make(chan struct{}),
 		sentMessages: make([]types.Message, 0),
@@ -43,7 +45,7 @@ func (t *MockTransport) Send(ctx context.Context, msg *types.Message) error {
 	return nil
 }
 
-func (t *MockTransport) GetRouter() *MessageRouter {
+func (t *MockTransport) GetRouter() *transport.MessageRouter {
 	return t.router
 }
 
