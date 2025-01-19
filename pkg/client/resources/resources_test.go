@@ -15,12 +15,11 @@ import (
 
 func setupTest(t *testing.T) (context.Context, *ResourcesClient, *base.Server, func()) {
 	logger := testutil.NewTestLogger(t)
-	transport := mock.NewMockTransport(logger)
+	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
+	baseServer := base.NewServer(serverTransport)
+	baseClient := base.NewClient(clientTransport)
 
-	baseClient := base.NewClient(transport)
 	resourcesClient := NewResourcesClient(baseClient)
-
-	baseServer := base.NewServer(transport)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
