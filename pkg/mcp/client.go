@@ -6,11 +6,11 @@ import (
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/transport"
-	"github.com/dwrtz/mcp-go/pkg/client"
 	"github.com/dwrtz/mcp-go/pkg/client/prompts"
 	"github.com/dwrtz/mcp-go/pkg/client/resources"
 	"github.com/dwrtz/mcp-go/pkg/client/roots"
 	"github.com/dwrtz/mcp-go/pkg/client/sampling"
+	"github.com/dwrtz/mcp-go/pkg/client/tools"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -23,7 +23,7 @@ type Client struct {
 	roots     *roots.RootsClient
 	resources *resources.ResourcesClient
 	prompts   *prompts.PromptsClient
-	tools     *client.ToolsClient
+	tools     *tools.ToolsClient
 	sampling  *sampling.SamplingClient
 
 	// Client capabilities
@@ -83,7 +83,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 	}
 
 	if result.Capabilities.Tools != nil {
-		c.tools = client.NewToolsClient(c.base)
+		c.tools = tools.NewToolsClient(c.base)
 	}
 
 	// Initialize sampling client if we declared the capability
@@ -150,7 +150,7 @@ func (c *Client) Prompts() *prompts.PromptsClient {
 }
 
 // Tools returns the tools client if the server supports it
-func (c *Client) Tools() *client.ToolsClient {
+func (c *Client) Tools() *tools.ToolsClient {
 	return c.tools
 }
 

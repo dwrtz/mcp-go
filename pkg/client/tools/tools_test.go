@@ -1,18 +1,49 @@
-package client
+package tools
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/mock"
+	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
+
+func setupTest(t *testing.T) (context.Context, *ToolsClient, *base.Server, func()) {
+	logger := testutil.NewTestLogger(t)
+	transport := mock.NewMockTransport(logger)
+
+	baseClient := base.NewClient(transport)
+	toolsClient := NewToolsClient(baseClient)
+
+	baseServer := base.NewServer(transport)
+
+	ctx := context.Background()
+	if err := baseServer.Start(ctx); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	if err := baseClient.Start(ctx); err != nil {
+		t.Fatalf("Failed to start client: %v", err)
+	}
+
+	cleanup := func() {
+		baseClient.Close()
+		baseServer.Close()
+	}
+
+	return ctx, toolsClient, baseServer, cleanup
+}
 
 func TestToolsClient_List(t *testing.T) {
 	tests := []struct {
 		name    string
 		tools   []types.Tool
 		wantErr bool
+		errCode int
 		errMsg  string
 	}{
 		{
@@ -42,36 +73,27 @@ func TestToolsClient_List(t *testing.T) {
 		{
 			name:    "server error",
 			wantErr: true,
+			errCode: types.InternalError,
 			errMsg:  "internal server error",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock client with all dependencies
-			mockClient := mock.NewMockClient(t)
-			defer mockClient.Close()
+			ctx, client, server, cleanup := setupTest(t)
+			defer cleanup()
 
-			// Create tools client
-			client := NewToolsClient(mockClient.BaseClient)
-
-			// Handle the expected request
-			done := mockClient.ExpectRequest(methods.ListTools, func(msg *types.Message) *types.Message {
+			// Register request handler
+			server.RegisterRequestHandler(methods.ListTools, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
 				if tt.wantErr {
-					return mockClient.CreateErrorResponse(msg, types.InternalError, tt.errMsg, nil)
+					return nil, types.NewError(tt.errCode, tt.errMsg)
 				}
-				return mockClient.CreateSuccessResponse(msg, &types.ListToolsResult{
+				return &types.ListToolsResult{
 					Tools: tt.tools,
-				})
+				}, nil
 			})
 
-			// Make the actual request
-			tools, err := client.List(mockClient.Context)
-
-			// Wait for mock handler to complete
-			<-done
-
-			// Verify results
+			tools, err := client.List(ctx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -80,23 +102,19 @@ func TestToolsClient_List(t *testing.T) {
 			if !tt.wantErr {
 				if len(tools) != len(tt.tools) {
 					t.Errorf("Expected %d tools, got %d", len(tt.tools), len(tools))
+					return
 				}
 
 				for i, want := range tt.tools {
-					if i >= len(tools) {
-						t.Errorf("Missing tool at index %d", i)
-						continue
-					}
 					if tools[i].Name != want.Name {
-						t.Errorf("Tool %d Name mismatch: want %s, got %s", i, want.Name, tools[i].Name)
+						t.Errorf("Tool %d Name mismatch: got %s, want %s", i, tools[i].Name, want.Name)
 					}
 					if tools[i].Description != want.Description {
-						t.Errorf("Tool %d Description mismatch: want %s, got %s", i, want.Description, tools[i].Description)
+						t.Errorf("Tool %d Description mismatch: got %s, want %s", i, tools[i].Description, want.Description)
 					}
+					// Could add more detailed comparison of InputSchema if needed
 				}
 			}
-
-			mockClient.AssertNoErrors(t)
 		})
 	}
 }
@@ -140,21 +158,17 @@ func TestToolsClient_Call(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockClient := mock.NewMockClient(t)
-			defer mockClient.Close()
+			ctx, client, server, cleanup := setupTest(t)
+			defer cleanup()
 
-			client := NewToolsClient(mockClient.BaseClient)
-
-			done := mockClient.ExpectRequest(methods.CallTool, func(msg *types.Message) *types.Message {
+			server.RegisterRequestHandler(methods.CallTool, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
 				if tt.wantErr {
-					return mockClient.CreateErrorResponse(msg, tt.errorCode, tt.errorMsg, nil)
+					return nil, types.NewError(tt.errorCode, tt.errorMsg)
 				}
-				return mockClient.CreateSuccessResponse(msg, tt.want)
+				return tt.want, nil
 			})
 
-			result, err := client.Call(mockClient.Context, tt.toolName, tt.args)
-			<-done
-
+			result, err := client.Call(ctx, tt.toolName, tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Call() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -176,20 +190,16 @@ func TestToolsClient_Call(t *testing.T) {
 					t.Errorf("Expected %d content items, got %d", len(tt.want.Content), len(result.Content))
 				}
 				if result.IsError != tt.want.IsError {
-					t.Errorf("IsError mismatch: want %v, got %v", tt.want.IsError, result.IsError)
+					t.Errorf("IsError mismatch: got %v, want %v", result.IsError, tt.want.IsError)
 				}
 			}
-
-			mockClient.AssertNoErrors(t)
 		})
 	}
 }
 
 func TestToolsClient_OnToolListChanged(t *testing.T) {
-	mockClient := mock.NewMockClient(t)
-	defer mockClient.Close()
-
-	client := NewToolsClient(mockClient.BaseClient)
+	ctx, client, server, cleanup := setupTest(t)
+	defer cleanup()
 
 	// Channel to track callback invocation
 	callbackInvoked := make(chan struct{})
@@ -199,23 +209,17 @@ func TestToolsClient_OnToolListChanged(t *testing.T) {
 		close(callbackInvoked)
 	})
 
-	// Test notification handling
-	err := mockClient.SimulateNotification(methods.ToolsChanged, struct{}{})
+	// Send notification from server
+	err := server.SendNotification(ctx, methods.ToolsChanged, nil)
 	if err != nil {
-		t.Fatalf("Failed to simulate notification: %v", err)
+		t.Fatalf("Failed to send notification: %v", err)
 	}
 
 	// Wait for callback with timeout
-	if err := mockClient.WaitForCallback(func(done chan<- struct{}) {
-		select {
-		case <-callbackInvoked:
-			close(done)
-		case <-mockClient.Context.Done():
-			t.Error("Context cancelled while waiting for callback")
-		}
-	}); err != nil {
-		t.Errorf("Error waiting for callback: %v", err)
+	select {
+	case <-callbackInvoked:
+		// Success
+	case <-time.After(time.Second):
+		t.Error("Timeout waiting for callback")
 	}
-
-	mockClient.AssertNoErrors(t)
 }
