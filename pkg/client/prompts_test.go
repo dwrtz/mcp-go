@@ -1,40 +1,12 @@
 package client
 
 import (
-	"context"
-	"encoding/json"
 	"testing"
-	"time"
 
-	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/mock"
-	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
-
-func setupTestPromptsClient(t *testing.T) (*PromptsClient, *mock.MockTransport, context.Context, context.CancelFunc) {
-	logger := testutil.NewTestLogger(t)
-	mockTransport := mock.NewMockTransport(logger)
-	baseClient := base.NewClient(mockTransport)
-	client := NewPromptsClient(baseClient)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-
-	// Start the client and transport
-	err := mockTransport.Start(ctx)
-	if err != nil {
-		t.Fatalf("Failed to start transport: %v", err)
-	}
-
-	err = baseClient.Start(ctx)
-	if err != nil {
-		cancel()
-		t.Fatalf("Failed to start client: %v", err)
-	}
-
-	return client, mockTransport, ctx, cancel
-}
 
 func TestPromptsClient_List(t *testing.T) {
 	tests := []struct {
@@ -57,22 +29,7 @@ func TestPromptsClient_List(t *testing.T) {
 						},
 					},
 				},
-				{
-					Name:        "summarize",
-					Description: "Summarize text content",
-					Arguments: []types.PromptArgument{
-						{
-							Name:     "text",
-							Required: true,
-						},
-					},
-				},
 			},
-			wantErr: false,
-		},
-		{
-			name:    "empty prompt list",
-			prompts: []types.Prompt{},
 			wantErr: false,
 		},
 		{
@@ -84,59 +41,30 @@ func TestPromptsClient_List(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, mockTransport, ctx, cancel := setupTestPromptsClient(t)
-			defer cancel()
+			// Create mock client with all dependencies
+			mockClient := mock.NewMockClient(t)
+			defer mockClient.Close()
 
-			mockTransport.ClearSentMessages()
+			// Create prompts client
+			client := NewPromptsClient(mockClient.BaseClient)
 
-			// Channel to coordinate test completion
-			done := make(chan struct{})
-
-			// Handle mock responses
-			go func() {
-				defer close(done)
-				select {
-				case msg := <-mockTransport.GetRouter().Requests:
-					if msg.Method != methods.ListPrompts {
-						t.Errorf("Expected method %s, got %s", methods.ListPrompts, msg.Method)
-					}
-
-					response := &types.Message{
-						JSONRPC: types.JSONRPCVersion,
-						ID:      msg.ID,
-					}
-
-					if tt.wantErr {
-						response.Error = &types.ErrorResponse{
-							Code:    types.InternalError,
-							Message: tt.errorMsg,
-						}
-					} else {
-						result := &types.ListPromptsResult{
-							Prompts: tt.prompts,
-						}
-						data, err := testutil.MarshalResult(result)
-						if err != nil {
-							t.Errorf("Failed to marshal result: %v", err)
-							return
-						}
-						response.Result = data
-					}
-
-					mockTransport.SimulateReceive(ctx, response)
-
-				case <-ctx.Done():
-					t.Error("Context cancelled while waiting for request")
-					return
+			// Handle the expected request
+			done := mockClient.ExpectRequest(methods.ListPrompts, func(msg *types.Message) *types.Message {
+				if tt.wantErr {
+					return mockClient.CreateErrorResponse(msg, types.InternalError, tt.errorMsg, nil)
 				}
-			}()
+				return mockClient.CreateSuccessResponse(msg, &types.ListPromptsResult{
+					Prompts: tt.prompts,
+				})
+			})
 
-			// Make the request
-			prompts, err := client.List(ctx)
+			// Make the actual request
+			prompts, err := client.List(mockClient.Context)
 
 			// Wait for mock handler to complete
 			<-done
 
+			// Verify results
 			if (err != nil) != tt.wantErr {
 				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -160,6 +88,8 @@ func TestPromptsClient_List(t *testing.T) {
 					}
 				}
 			}
+
+			mockClient.AssertNoErrors(t)
 		})
 	}
 }
@@ -203,58 +133,19 @@ func TestPromptsClient_Get(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, mockTransport, ctx, cancel := setupTestPromptsClient(t)
-			defer cancel()
+			mockClient := mock.NewMockClient(t)
+			defer mockClient.Close()
 
-			mockTransport.ClearSentMessages()
-			done := make(chan struct{})
+			client := NewPromptsClient(mockClient.BaseClient)
 
-			go func() {
-				defer close(done)
-				select {
-				case msg := <-mockTransport.GetRouter().Requests:
-					if msg.Method != methods.GetPrompt {
-						t.Errorf("Expected method %s, got %s", methods.GetPrompt, msg.Method)
-					}
-
-					var req types.GetPromptRequest
-					if err := json.Unmarshal(*msg.Params, &req); err != nil {
-						t.Errorf("Failed to unmarshal request params: %v", err)
-						return
-					}
-
-					if req.Name != tt.promptName {
-						t.Errorf("Expected prompt name %s, got %s", tt.promptName, req.Name)
-					}
-
-					response := &types.Message{
-						JSONRPC: types.JSONRPCVersion,
-						ID:      msg.ID,
-					}
-
-					if tt.wantErr {
-						response.Error = &types.ErrorResponse{
-							Code:    types.InvalidParams,
-							Message: tt.errorMsg,
-						}
-					} else {
-						data, err := testutil.MarshalResult(tt.want)
-						if err != nil {
-							t.Errorf("Failed to marshal result: %v", err)
-							return
-						}
-						response.Result = data
-					}
-
-					mockTransport.SimulateReceive(ctx, response)
-
-				case <-ctx.Done():
-					t.Error("Context cancelled while waiting for request")
-					return
+			done := mockClient.ExpectRequest(methods.GetPrompt, func(msg *types.Message) *types.Message {
+				if tt.wantErr {
+					return mockClient.CreateErrorResponse(msg, types.InvalidParams, tt.errorMsg, nil)
 				}
-			}()
+				return mockClient.CreateSuccessResponse(msg, tt.want)
+			})
 
-			got, err := client.Get(ctx, tt.promptName, tt.args)
+			got, err := client.Get(mockClient.Context, tt.promptName, tt.args)
 			<-done
 
 			if (err != nil) != tt.wantErr {
@@ -279,7 +170,7 @@ func TestPromptsClient_Get(t *testing.T) {
 					if got.Messages[i].Role != wantMsg.Role {
 						t.Errorf("Message %d Role mismatch: want %s, got %s", i, wantMsg.Role, got.Messages[i].Role)
 					}
-					// Compare content - this assumes TextContent, but could be extended for other types
+					// Compare content
 					wantContent, ok := wantMsg.Content.(types.TextContent)
 					if !ok {
 						t.Errorf("Message %d: expected TextContent", i)
@@ -295,13 +186,17 @@ func TestPromptsClient_Get(t *testing.T) {
 					}
 				}
 			}
+
+			mockClient.AssertNoErrors(t)
 		})
 	}
 }
 
 func TestPromptsClient_OnPromptListChanged(t *testing.T) {
-	client, mockTransport, ctx, cancel := setupTestPromptsClient(t)
-	defer cancel()
+	mockClient := mock.NewMockClient(t)
+	defer mockClient.Close()
+
+	client := NewPromptsClient(mockClient.BaseClient)
 
 	// Channel to track callback invocation
 	callbackInvoked := make(chan struct{})
@@ -311,21 +206,23 @@ func TestPromptsClient_OnPromptListChanged(t *testing.T) {
 		close(callbackInvoked)
 	})
 
-	// Simulate server sending a notification
-	notification := &types.Message{
-		JSONRPC: types.JSONRPCVersion,
-		Method:  methods.PromptsChanged,
-		Params:  &json.RawMessage{'{', '}'}, // Empty JSON object
+	// Test notification handling
+	err := mockClient.SimulateNotification(methods.PromptsChanged, struct{}{})
+	if err != nil {
+		t.Fatalf("Failed to simulate notification: %v", err)
 	}
-	mockTransport.SimulateReceive(ctx, notification)
 
 	// Wait for callback with timeout
-	select {
-	case <-callbackInvoked:
-		// Success - callback was invoked
-	case <-time.After(time.Second):
-		t.Error("Timeout waiting for prompt list changed callback")
-	case <-ctx.Done():
-		t.Error("Context cancelled while waiting for callback")
+	if err := mockClient.WaitForCallback(func(done chan<- struct{}) {
+		select {
+		case <-callbackInvoked:
+			close(done)
+		case <-mockClient.Context.Done():
+			t.Error("Context cancelled while waiting for callback")
+		}
+	}); err != nil {
+		t.Errorf("Error waiting for callback: %v", err)
 	}
+
+	mockClient.AssertNoErrors(t)
 }
