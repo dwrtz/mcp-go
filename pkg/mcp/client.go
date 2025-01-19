@@ -9,6 +9,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/client"
 	"github.com/dwrtz/mcp-go/pkg/client/prompts"
 	"github.com/dwrtz/mcp-go/pkg/client/resources"
+	"github.com/dwrtz/mcp-go/pkg/client/roots"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -18,7 +19,7 @@ type Client struct {
 	base *base.Client
 
 	// Feature-specific clients
-	roots     *client.RootsClient
+	roots     *roots.RootsClient
 	resources *resources.ResourcesClient
 	prompts   *prompts.PromptsClient
 	tools     *client.ToolsClient
@@ -72,7 +73,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
-		c.roots = client.NewRootsClient(c.base)
+		c.roots = roots.NewRootsClient(c.base)
 		c.resources = resources.NewResourcesClient(c.base)
 	}
 
@@ -133,7 +134,7 @@ func (c *Client) SupportsSampling() bool {
 }
 
 // Roots returns the roots client if the server supports it
-func (c *Client) Roots() *client.RootsClient {
+func (c *Client) Roots() *roots.RootsClient {
 	return c.roots
 }
 
