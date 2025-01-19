@@ -1,15 +1,45 @@
 package client
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/mock"
+	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
+func setupTest(t *testing.T) (context.Context, *PromptsClient, *base.Server, func()) {
+	logger := testutil.NewTestLogger(t)
+	transport := mock.NewMockTransport(logger)
+
+	baseClient := base.NewClient(transport)
+	promptsClient := NewPromptsClient(baseClient)
+
+	baseServer := base.NewServer(transport)
+
+	ctx := context.Background()
+	if err := baseServer.Start(ctx); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	if err := baseClient.Start(ctx); err != nil {
+		t.Fatalf("Failed to start client: %v", err)
+	}
+
+	cleanup := func() {
+		baseClient.Close()
+		baseServer.Close()
+	}
+
+	return ctx, promptsClient, baseServer, cleanup
+}
+
 func TestPromptsClient_List(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name     string
 		prompts  []types.Prompt
 		wantErr  bool
@@ -30,7 +60,6 @@ func TestPromptsClient_List(t *testing.T) {
 					},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name:     "server error",
@@ -39,68 +68,53 @@ func TestPromptsClient_List(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create mock client with all dependencies
-			mockClient := mock.NewMockClient(t)
-			defer mockClient.Close()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, client, server, cleanup := setupTest(t)
+			defer cleanup()
 
-			// Create prompts client
-			client := NewPromptsClient(mockClient.BaseClient)
-
-			// Handle the expected request
-			done := mockClient.ExpectRequest(methods.ListPrompts, func(msg *types.Message) *types.Message {
-				if tt.wantErr {
-					return mockClient.CreateErrorResponse(msg, types.InternalError, tt.errorMsg, nil)
+			server.RegisterRequestHandler(methods.ListPrompts, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+				if tc.wantErr {
+					return nil, types.NewError(types.InternalError, tc.errorMsg)
 				}
-				return mockClient.CreateSuccessResponse(msg, &types.ListPromptsResult{
-					Prompts: tt.prompts,
-				})
+				return &types.ListPromptsResult{Prompts: tc.prompts}, nil
 			})
 
-			// Make the actual request
-			prompts, err := client.List(mockClient.Context)
+			prompts, err := client.List(ctx)
 
-			// Wait for mock handler to complete
-			<-done
-
-			// Verify results
-			if (err != nil) != tt.wantErr {
-				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("List() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
 
-			if !tt.wantErr {
-				if len(prompts) != len(tt.prompts) {
-					t.Errorf("Expected %d prompts, got %d", len(tt.prompts), len(prompts))
+			if !tc.wantErr {
+				if len(prompts) != len(tc.prompts) {
+					t.Errorf("Expected %d prompts, got %d", len(tc.prompts), len(prompts))
+					return
 				}
 
-				for i, want := range tt.prompts {
-					if i >= len(prompts) {
-						t.Errorf("Missing prompt at index %d", i)
-						continue
+				for i, want := range tc.prompts {
+					got := prompts[i]
+					if got.Name != want.Name {
+						t.Errorf("Prompt %d name = %v, want %v", i, got.Name, want.Name)
 					}
-					if prompts[i].Name != want.Name {
-						t.Errorf("Prompt %d Name mismatch: want %s, got %s", i, want.Name, prompts[i].Name)
-					}
-					if prompts[i].Description != want.Description {
-						t.Errorf("Prompt %d Description mismatch: want %s, got %s", i, want.Description, prompts[i].Description)
+					if got.Description != want.Description {
+						t.Errorf("Prompt %d description = %v, want %v", i, got.Description, want.Description)
 					}
 				}
 			}
-
-			mockClient.AssertNoErrors(t)
 		})
 	}
 }
 
 func TestPromptsClient_Get(t *testing.T) {
-	tests := []struct {
+	testCases := []struct {
 		name       string
 		promptName string
 		args       map[string]string
 		want       *types.GetPromptResult
 		wantErr    bool
+		errorCode  int
 		errorMsg   string
 	}{
 		{
@@ -121,108 +135,90 @@ func TestPromptsClient_Get(t *testing.T) {
 					},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name:       "prompt not found",
 			promptName: "nonexistent",
 			wantErr:    true,
+			errorCode:  types.InvalidParams,
 			errorMsg:   "prompt not found",
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockClient := mock.NewMockClient(t)
-			defer mockClient.Close()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, client, server, cleanup := setupTest(t)
+			defer cleanup()
 
-			client := NewPromptsClient(mockClient.BaseClient)
-
-			done := mockClient.ExpectRequest(methods.GetPrompt, func(msg *types.Message) *types.Message {
-				if tt.wantErr {
-					return mockClient.CreateErrorResponse(msg, types.InvalidParams, tt.errorMsg, nil)
+			server.RegisterRequestHandler(methods.GetPrompt, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+				if tc.wantErr {
+					return nil, types.NewError(tc.errorCode, tc.errorMsg)
 				}
-				return mockClient.CreateSuccessResponse(msg, tt.want)
+				return tc.want, nil
 			})
 
-			got, err := client.Get(mockClient.Context, tt.promptName, tt.args)
-			<-done
+			result, err := client.Get(ctx, tc.promptName, tc.args)
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Get() error = %v, wantErr %v", err, tt.wantErr)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("Get() error = %v, wantErr %v", err, tc.wantErr)
 				return
 			}
 
-			if !tt.wantErr {
-				if got.Description != tt.want.Description {
-					t.Errorf("Description mismatch: want %s, got %s", tt.want.Description, got.Description)
+			if !tc.wantErr {
+				if result.Description != tc.want.Description {
+					t.Errorf("Description = %v, want %v", result.Description, tc.want.Description)
 				}
 
-				if len(got.Messages) != len(tt.want.Messages) {
-					t.Errorf("Expected %d messages, got %d", len(tt.want.Messages), len(got.Messages))
+				if len(result.Messages) != len(tc.want.Messages) {
+					t.Errorf("Got %d messages, want %d", len(result.Messages), len(tc.want.Messages))
+					return
 				}
 
-				for i, wantMsg := range tt.want.Messages {
-					if i >= len(got.Messages) {
-						t.Errorf("Missing message at index %d", i)
-						continue
+				for i, wantMsg := range tc.want.Messages {
+					gotMsg := result.Messages[i]
+					if gotMsg.Role != wantMsg.Role {
+						t.Errorf("Message[%d].Role = %v, want %v", i, gotMsg.Role, wantMsg.Role)
 					}
-					if got.Messages[i].Role != wantMsg.Role {
-						t.Errorf("Message %d Role mismatch: want %s, got %s", i, wantMsg.Role, got.Messages[i].Role)
-					}
-					// Compare content
+
 					wantContent, ok := wantMsg.Content.(types.TextContent)
 					if !ok {
-						t.Errorf("Message %d: expected TextContent", i)
+						t.Errorf("Message[%d]: expected TextContent", i)
 						continue
 					}
-					gotContent, ok := got.Messages[i].Content.(types.TextContent)
+
+					gotContent, ok := gotMsg.Content.(types.TextContent)
 					if !ok {
-						t.Errorf("Message %d: got unexpected content type", i)
+						t.Errorf("Message[%d]: got unexpected content type", i)
 						continue
 					}
+
 					if gotContent.Text != wantContent.Text {
-						t.Errorf("Message %d Text mismatch: want %s, got %s", i, wantContent.Text, gotContent.Text)
+						t.Errorf("Message[%d].Text = %v, want %v", i, gotContent.Text, wantContent.Text)
 					}
 				}
 			}
-
-			mockClient.AssertNoErrors(t)
 		})
 	}
 }
 
 func TestPromptsClient_OnPromptListChanged(t *testing.T) {
-	mockClient := mock.NewMockClient(t)
-	defer mockClient.Close()
+	ctx, client, server, cleanup := setupTest(t)
+	defer cleanup()
 
-	client := NewPromptsClient(mockClient.BaseClient)
-
-	// Channel to track callback invocation
 	callbackInvoked := make(chan struct{})
 
-	// Register callback
 	client.OnPromptListChanged(func() {
 		close(callbackInvoked)
 	})
 
-	// Test notification handling
-	err := mockClient.SimulateNotification(methods.PromptsChanged, struct{}{})
-	if err != nil {
-		t.Fatalf("Failed to simulate notification: %v", err)
+	if err := server.SendNotification(ctx, methods.PromptsChanged, nil); err != nil {
+		t.Fatalf("Failed to send notification: %v", err)
 	}
 
-	// Wait for callback with timeout
-	if err := mockClient.WaitForCallback(func(done chan<- struct{}) {
-		select {
-		case <-callbackInvoked:
-			close(done)
-		case <-mockClient.Context.Done():
-			t.Error("Context cancelled while waiting for callback")
-		}
-	}); err != nil {
-		t.Errorf("Error waiting for callback: %v", err)
+	select {
+	case <-callbackInvoked:
+		// Success
+	case <-time.After(time.Second):
+		t.Error("Callback not called within timeout")
 	}
-
-	mockClient.AssertNoErrors(t)
 }
