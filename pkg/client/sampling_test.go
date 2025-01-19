@@ -1,40 +1,13 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
-	"time"
 
-	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/mock"
-	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
-
-func setupTestSamplingClient(t *testing.T) (*SamplingClient, *mock.MockTransport, context.Context, context.CancelFunc) {
-	logger := testutil.NewTestLogger(t)
-	mockTransport := mock.NewMockTransport(logger)
-	baseClient := base.NewClient(mockTransport)
-	client := NewSamplingClient(baseClient)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-
-	// Start the client and transport
-	err := mockTransport.Start(ctx)
-	if err != nil {
-		t.Fatalf("Failed to start transport: %v", err)
-	}
-
-	err = baseClient.Start(ctx)
-	if err != nil {
-		cancel()
-		t.Fatalf("Failed to start client: %v", err)
-	}
-
-	return client, mockTransport, ctx, cancel
-}
 
 func TestSamplingClient_CreateMessage(t *testing.T) {
 	tests := []struct {
@@ -140,57 +113,28 @@ func TestSamplingClient_CreateMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client, mockTransport, ctx, cancel := setupTestSamplingClient(t)
-			defer cancel()
+			// Create mock client with all dependencies
+			mockClient := mock.NewMockClient(t)
+			defer mockClient.Close()
 
-			mockTransport.ClearSentMessages()
-			done := make(chan struct{})
+			// Create sampling client
+			client := NewSamplingClient(mockClient.BaseClient)
 
-			go func() {
-				defer close(done)
-				select {
-				case msg := <-mockTransport.GetRouter().Requests:
-					if msg.Method != methods.SampleCreate {
-						t.Errorf("Expected method %s, got %s", methods.SampleCreate, msg.Method)
-					}
-
-					// Verify request parameters
-					var req types.CreateMessageRequest
-					if err := json.Unmarshal(*msg.Params, &req); err != nil {
-						t.Errorf("Failed to unmarshal request params: %v", err)
-						return
-					}
-
-					response := &types.Message{
-						JSONRPC: types.JSONRPCVersion,
-						ID:      msg.ID,
-					}
-
-					if tt.wantErr {
-						response.Error = &types.ErrorResponse{
-							Code:    tt.errCode,
-							Message: tt.errMsg,
-						}
-					} else {
-						data, err := testutil.MarshalResult(tt.want)
-						if err != nil {
-							t.Errorf("Failed to marshal result: %v", err)
-							return
-						}
-						response.Result = data
-					}
-
-					mockTransport.SimulateReceive(ctx, response)
-
-				case <-ctx.Done():
-					t.Error("Context cancelled while waiting for request")
-					return
+			// Handle the expected request
+			done := mockClient.ExpectRequest(methods.SampleCreate, func(msg *types.Message) *types.Message {
+				if tt.wantErr {
+					return mockClient.CreateErrorResponse(msg, tt.errCode, tt.errMsg, nil)
 				}
-			}()
+				return mockClient.CreateSuccessResponse(msg, tt.want)
+			})
 
-			result, err := client.CreateMessage(ctx, tt.req)
+			// Make the actual request
+			result, err := client.CreateMessage(mockClient.Context, tt.req)
+
+			// Wait for mock handler to complete
 			<-done
 
+			// Verify results
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -233,13 +177,17 @@ func TestSamplingClient_CreateMessage(t *testing.T) {
 					t.Errorf("Content mismatch:\nwant: %s\ngot:  %s", wantContent.Text, gotContent.Text)
 				}
 			}
+
+			mockClient.AssertNoErrors(t)
 		})
 	}
 }
 
 func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
-	client, mockTransport, ctx, cancel := setupTestSamplingClient(t)
-	defer cancel()
+	mockClient := mock.NewMockClient(t)
+	defer mockClient.Close()
+
+	client := NewSamplingClient(mockClient.BaseClient)
 
 	messages := []types.SamplingMessage{
 		{
@@ -261,48 +209,22 @@ func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
 		StopReason: "endTurn",
 	}
 
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-		select {
-		case msg := <-mockTransport.GetRouter().Requests:
-			if msg.Method != methods.SampleCreate {
-				t.Errorf("Expected method %s, got %s", methods.SampleCreate, msg.Method)
-			}
-
-			// Verify request uses default values
-			var req types.CreateMessageRequest
-			if err := json.Unmarshal(*msg.Params, &req); err != nil {
-				t.Errorf("Failed to unmarshal request params: %v", err)
-				return
-			}
-
-			if req.MaxTokens != 1000 {
-				t.Errorf("Expected default MaxTokens 1000, got %d", req.MaxTokens)
-			}
-
-			response := &types.Message{
-				JSONRPC: types.JSONRPCVersion,
-				ID:      msg.ID,
-			}
-
-			data, err := testutil.MarshalResult(want)
-			if err != nil {
-				t.Errorf("Failed to marshal result: %v", err)
-				return
-			}
-			response.Result = data
-
-			mockTransport.SimulateReceive(ctx, response)
-
-		case <-ctx.Done():
-			t.Error("Context cancelled while waiting for request")
-			return
+	done := mockClient.ExpectRequest(methods.SampleCreate, func(msg *types.Message) *types.Message {
+		// Verify request uses default values
+		var req types.CreateMessageRequest
+		if err := json.Unmarshal(*msg.Params, &req); err != nil {
+			t.Errorf("Failed to unmarshal request params: %v", err)
+			return nil
 		}
-	}()
 
-	result, err := client.CreateMessageWithDefaults(ctx, messages)
+		if req.MaxTokens != 1000 {
+			t.Errorf("Expected default MaxTokens 1000, got %d", req.MaxTokens)
+		}
+
+		return mockClient.CreateSuccessResponse(msg, want)
+	})
+
+	result, err := client.CreateMessageWithDefaults(mockClient.Context, messages)
 	<-done
 
 	if err != nil {
@@ -322,4 +244,6 @@ func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
 	if gotContent.Text != wantContent.Text {
 		t.Errorf("Content mismatch:\nwant: %s\ngot:  %s", wantContent.Text, gotContent.Text)
 	}
+
+	mockClient.AssertNoErrors(t)
 }
