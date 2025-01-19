@@ -8,7 +8,11 @@ import (
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/methods"
-	"github.com/dwrtz/mcp-go/pkg/server"
+	"github.com/dwrtz/mcp-go/pkg/server/prompts"
+	"github.com/dwrtz/mcp-go/pkg/server/resources"
+	"github.com/dwrtz/mcp-go/pkg/server/roots"
+	"github.com/dwrtz/mcp-go/pkg/server/sampling"
+	"github.com/dwrtz/mcp-go/pkg/server/tools"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
@@ -17,11 +21,11 @@ type Server struct {
 	base *base.Server
 
 	// Feature-specific servers
-	roots     *server.RootsServer
-	resources *server.ResourcesServer
-	prompts   *server.PromptsServer
-	tools     *server.ToolsServer
-	sampling  *server.SamplingServer
+	roots     *roots.RootsServer
+	resources *resources.ResourcesServer
+	prompts   *prompts.PromptsServer
+	tools     *tools.ToolsServer
+	sampling  *sampling.SamplingServer
 
 	// Server capabilities
 	capabilities types.ServerCapabilities
@@ -111,27 +115,27 @@ func (s *Server) Close() error {
 }
 
 // Roots returns the roots server if enabled
-func (s *Server) Roots() *server.RootsServer {
+func (s *Server) Roots() *roots.RootsServer {
 	return s.roots
 }
 
 // Resources returns the resources server if enabled
-func (s *Server) Resources() *server.ResourcesServer {
+func (s *Server) Resources() *resources.ResourcesServer {
 	return s.resources
 }
 
 // Prompts returns the prompts server if enabled
-func (s *Server) Prompts() *server.PromptsServer {
+func (s *Server) Prompts() *prompts.PromptsServer {
 	return s.prompts
 }
 
 // Tools returns the tools server if enabled
-func (s *Server) Tools() *server.ToolsServer {
+func (s *Server) Tools() *tools.ToolsServer {
 	return s.tools
 }
 
 // Sampling returns the sampling server if enabled
-func (s *Server) Sampling() *server.SamplingServer {
+func (s *Server) Sampling() *sampling.SamplingServer {
 	return s.sampling
 }
 
@@ -149,21 +153,21 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 
 	// Initialize feature-specific servers based on capabilities
 	if s.capabilities.Resources != nil {
-		s.roots = server.NewRootsServer(s.base)
-		s.resources = server.NewResourcesServer(s.base)
+		s.roots = roots.NewRootsServer(s.base)
+		s.resources = resources.NewResourcesServer(s.base)
 	}
 
 	if s.capabilities.Prompts != nil {
-		s.prompts = server.NewPromptsServer(s.base)
+		s.prompts = prompts.NewPromptsServer(s.base)
 	}
 
 	if s.capabilities.Tools != nil {
-		s.tools = server.NewToolsServer(s.base)
+		s.tools = tools.NewToolsServer(s.base)
 	}
 
 	// Initialize sampling server if client supports it
 	if req.Capabilities.Sampling != nil {
-		s.sampling = server.NewSamplingServer(s.base)
+		s.sampling = sampling.NewSamplingServer(s.base)
 	}
 
 	return &types.InitializeResult{

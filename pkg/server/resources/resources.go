@@ -1,4 +1,4 @@
-package server
+package resources
 
 import (
 	"context"
