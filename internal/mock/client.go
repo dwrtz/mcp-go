@@ -95,6 +95,9 @@ func (c *MockClient) CreateSuccessResponse(msg *types.Message, result interface{
 			c.T.Fatalf("Failed to marshal result: %v", err)
 		}
 		response.Result = data
+	} else {
+		emptyObj := json.RawMessage([]byte("{}"))
+		response.Result = &emptyObj
 	}
 
 	return response
@@ -115,20 +118,22 @@ func (c *MockClient) CreateErrorResponse(msg *types.Message, code int, message s
 
 // SimulateNotification simulates receiving a notification from the server
 func (c *MockClient) SimulateNotification(method string, params interface{}) error {
-	var raw *json.RawMessage
+	var raw json.RawMessage
 	if params != nil {
 		data, err := json.Marshal(params)
 		if err != nil {
 			return err
 		}
-		r := json.RawMessage(data)
-		raw = &r
+		raw = data
+	} else {
+		// Always use empty object if no params provided
+		raw = []byte("{}")
 	}
 
 	notification := &types.Message{
 		JSONRPC: types.JSONRPCVersion,
 		Method:  method,
-		Params:  raw,
+		Params:  &raw,
 	}
 
 	c.Transport.SimulateReceive(c.Context, notification)
