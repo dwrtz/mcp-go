@@ -23,7 +23,7 @@ type ResourcesServer struct {
 }
 
 // ContentHandler is a function that returns the contents of a resource
-type ContentHandler func(ctx context.Context, uri string) ([]interface{}, error)
+type ContentHandler func(ctx context.Context, uri string) ([]types.ResourceContent, error)
 
 // NewResourcesServer creates a new ResourcesServer
 func NewResourcesServer(base *base.Server) *ResourcesServer {

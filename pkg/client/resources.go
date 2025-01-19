@@ -50,7 +50,7 @@ func (c *ResourcesClient) List(ctx context.Context) ([]types.Resource, error) {
 }
 
 // Read requests the contents of a specific resource
-func (c *ResourcesClient) Read(ctx context.Context, uri string) ([]interface{}, error) {
+func (c *ResourcesClient) Read(ctx context.Context, uri string) ([]types.ResourceContent, error) {
 	req := &types.ReadResourceRequest{
 		Method: methods.ReadResource,
 		URI:    uri,

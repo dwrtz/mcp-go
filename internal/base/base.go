@@ -152,7 +152,10 @@ func (c *Client) handleMessages(ctx context.Context) {
 	router := c.transport.GetRouter()
 	for {
 		select {
-		case notif := <-router.Notifications:
+		case notif, ok := <-router.Notifications:
+			if !ok {
+				return
+			}
 			// Handle notification in a goroutine
 			go c.handleNotification(ctx, notif)
 		case <-ctx.Done():
@@ -304,10 +307,16 @@ func (s *Server) handleMessages(ctx context.Context) {
 	router := s.transport.GetRouter()
 	for {
 		select {
-		case req := <-router.Requests:
+		case req, ok := <-router.Requests:
+			if !ok {
+				return
+			}
 			// Handle request in a goroutine
 			go s.handleRequest(ctx, req)
-		case notif := <-router.Notifications:
+		case notif, ok := <-router.Notifications:
+			if !ok {
+				return
+			}
 			// Handle notification in a goroutine
 			go s.handleNotification(ctx, notif)
 		case <-ctx.Done():
