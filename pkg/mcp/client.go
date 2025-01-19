@@ -10,6 +10,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/client/prompts"
 	"github.com/dwrtz/mcp-go/pkg/client/resources"
 	"github.com/dwrtz/mcp-go/pkg/client/roots"
+	"github.com/dwrtz/mcp-go/pkg/client/sampling"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -23,7 +24,7 @@ type Client struct {
 	resources *resources.ResourcesClient
 	prompts   *prompts.PromptsClient
 	tools     *client.ToolsClient
-	sampling  *client.SamplingClient
+	sampling  *sampling.SamplingClient
 
 	// Client capabilities
 	capabilities types.ClientCapabilities
@@ -87,7 +88,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	// Initialize sampling client if we declared the capability
 	if c.capabilities.Sampling != nil {
-		c.sampling = client.NewSamplingClient(c.base)
+		c.sampling = sampling.NewSamplingClient(c.base)
 	}
 
 	// Send initialized notification
@@ -154,6 +155,6 @@ func (c *Client) Tools() *client.ToolsClient {
 }
 
 // Sampling returns the sampling client if supported
-func (c *Client) Sampling() *client.SamplingClient {
+func (c *Client) Sampling() *sampling.SamplingClient {
 	return c.sampling
 }

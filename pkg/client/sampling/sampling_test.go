@@ -1,13 +1,41 @@
-package client
+package sampling
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
+	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/mock"
+	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
+
+func setupTest(t *testing.T) (context.Context, *SamplingClient, *base.Server, func()) {
+	logger := testutil.NewTestLogger(t)
+	transport := mock.NewMockTransport(logger)
+
+	baseClient := base.NewClient(transport)
+	samplingClient := NewSamplingClient(baseClient)
+
+	baseServer := base.NewServer(transport)
+
+	ctx := context.Background()
+	if err := baseServer.Start(ctx); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	if err := baseClient.Start(ctx); err != nil {
+		t.Fatalf("Failed to start client: %v", err)
+	}
+
+	cleanup := func() {
+		baseClient.Close()
+		baseServer.Close()
+	}
+
+	return ctx, samplingClient, baseServer, cleanup
+}
 
 func TestSamplingClient_CreateMessage(t *testing.T) {
 	tests := []struct {
@@ -113,28 +141,23 @@ func TestSamplingClient_CreateMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create mock client with all dependencies
-			mockClient := mock.NewMockClient(t)
-			defer mockClient.Close()
+			ctx, client, server, cleanup := setupTest(t)
+			defer cleanup()
 
-			// Create sampling client
-			client := NewSamplingClient(mockClient.BaseClient)
-
-			// Handle the expected request
-			done := mockClient.ExpectRequest(methods.SampleCreate, func(msg *types.Message) *types.Message {
-				if tt.wantErr {
-					return mockClient.CreateErrorResponse(msg, tt.errCode, tt.errMsg, nil)
+			server.RegisterRequestHandler(methods.SampleCreate, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+				var req types.CreateMessageRequest
+				if err := json.Unmarshal(params, &req); err != nil {
+					return nil, err
 				}
-				return mockClient.CreateSuccessResponse(msg, tt.want)
+
+				if tt.wantErr {
+					return nil, types.NewError(tt.errCode, tt.errMsg)
+				}
+
+				return tt.want, nil
 			})
 
-			// Make the actual request
-			result, err := client.CreateMessage(mockClient.Context, tt.req)
-
-			// Wait for mock handler to complete
-			<-done
-
-			// Verify results
+			result, err := client.CreateMessage(ctx, tt.req)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -151,43 +174,40 @@ func TestSamplingClient_CreateMessage(t *testing.T) {
 				} else {
 					t.Errorf("Expected MCP error, got %T", err)
 				}
-			} else {
-				if result.Role != tt.want.Role {
-					t.Errorf("Role mismatch: want %s, got %s", tt.want.Role, result.Role)
-				}
-				if result.Model != tt.want.Model {
-					t.Errorf("Model mismatch: want %s, got %s", tt.want.Model, result.Model)
-				}
-				if result.StopReason != tt.want.StopReason {
-					t.Errorf("StopReason mismatch: want %s, got %s", tt.want.StopReason, result.StopReason)
-				}
-
-				// Compare content
-				wantContent, ok := tt.want.Content.(types.TextContent)
-				if !ok {
-					t.Errorf("Expected TextContent in want")
-					return
-				}
-				gotContent, ok := result.Content.(types.TextContent)
-				if !ok {
-					t.Errorf("Expected TextContent in result")
-					return
-				}
-				if gotContent.Text != wantContent.Text {
-					t.Errorf("Content mismatch:\nwant: %s\ngot:  %s", wantContent.Text, gotContent.Text)
-				}
+				return
 			}
 
-			mockClient.AssertNoErrors(t)
+			if result.Role != tt.want.Role {
+				t.Errorf("Role mismatch: want %s, got %s", tt.want.Role, result.Role)
+			}
+			if result.Model != tt.want.Model {
+				t.Errorf("Model mismatch: want %s, got %s", tt.want.Model, result.Model)
+			}
+			if result.StopReason != tt.want.StopReason {
+				t.Errorf("StopReason mismatch: want %s, got %s", tt.want.StopReason, result.StopReason)
+			}
+
+			// Compare content
+			wantContent, ok := tt.want.Content.(types.TextContent)
+			if !ok {
+				t.Errorf("Expected TextContent in want")
+				return
+			}
+			gotContent, ok := result.Content.(types.TextContent)
+			if !ok {
+				t.Errorf("Expected TextContent in result")
+				return
+			}
+			if gotContent.Text != wantContent.Text {
+				t.Errorf("Content mismatch:\nwant: %s\ngot:  %s", wantContent.Text, gotContent.Text)
+			}
 		})
 	}
 }
 
 func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
-	mockClient := mock.NewMockClient(t)
-	defer mockClient.Close()
-
-	client := NewSamplingClient(mockClient.BaseClient)
+	ctx, client, server, cleanup := setupTest(t)
+	defer cleanup()
 
 	messages := []types.SamplingMessage{
 		{
@@ -209,24 +229,21 @@ func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
 		StopReason: "endTurn",
 	}
 
-	done := mockClient.ExpectRequest(methods.SampleCreate, func(msg *types.Message) *types.Message {
-		// Verify request uses default values
+	server.RegisterRequestHandler(methods.SampleCreate, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
 		var req types.CreateMessageRequest
-		if err := json.Unmarshal(*msg.Params, &req); err != nil {
-			t.Errorf("Failed to unmarshal request params: %v", err)
-			return nil
+		if err := json.Unmarshal(params, &req); err != nil {
+			return nil, err
 		}
 
+		// Verify request uses default values
 		if req.MaxTokens != 1000 {
 			t.Errorf("Expected default MaxTokens 1000, got %d", req.MaxTokens)
 		}
 
-		return mockClient.CreateSuccessResponse(msg, want)
+		return want, nil
 	})
 
-	result, err := client.CreateMessageWithDefaults(mockClient.Context, messages)
-	<-done
-
+	result, err := client.CreateMessageWithDefaults(ctx, messages)
 	if err != nil {
 		t.Fatalf("CreateMessageWithDefaults() error = %v", err)
 	}
@@ -244,6 +261,4 @@ func TestSamplingClient_CreateMessageWithDefaults(t *testing.T) {
 	if gotContent.Text != wantContent.Text {
 		t.Errorf("Content mismatch:\nwant: %s\ngot:  %s", wantContent.Text, gotContent.Text)
 	}
-
-	mockClient.AssertNoErrors(t)
 }
