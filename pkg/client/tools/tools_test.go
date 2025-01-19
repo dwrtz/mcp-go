@@ -209,9 +209,9 @@ func TestToolsClient_OnToolListChanged(t *testing.T) {
 		close(callbackInvoked)
 	})
 
-	// Send notification from server
-	err := server.SendNotification(ctx, methods.ToolsChanged, nil)
-	if err != nil {
+	// Send notification with empty struct as params
+	notification := struct{}{}
+	if err := server.SendNotification(ctx, methods.ToolsChanged, notification); err != nil {
 		t.Fatalf("Failed to send notification: %v", err)
 	}
 

@@ -236,12 +236,12 @@ func TestResourcesClient_OnResourceUpdated(t *testing.T) {
 	// Test URI
 	testURI := "file:///project/src/main.rs"
 
-	// Send notification
-	err := server.SendNotification(ctx, methods.ResourceUpdated, &types.ResourceUpdatedNotification{
+	// Send notification with proper notification struct
+	notification := types.ResourceUpdatedNotification{
 		Method: methods.ResourceUpdated,
 		URI:    testURI,
-	})
-	if err != nil {
+	}
+	if err := server.SendNotification(ctx, methods.ResourceUpdated, notification); err != nil {
 		t.Fatalf("Failed to send notification: %v", err)
 	}
 
@@ -268,9 +268,9 @@ func TestResourcesClient_OnResourceListChanged(t *testing.T) {
 		close(callbackCalled)
 	})
 
-	// Send notification
-	err := server.SendNotification(ctx, methods.ResourceListChanged, struct{}{})
-	if err != nil {
+	// Send notification with empty struct as params
+	notification := struct{}{}
+	if err := server.SendNotification(ctx, methods.ResourceListChanged, notification); err != nil {
 		t.Fatalf("Failed to send notification: %v", err)
 	}
 

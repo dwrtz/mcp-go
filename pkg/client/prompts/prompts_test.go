@@ -211,7 +211,8 @@ func TestPromptsClient_OnPromptListChanged(t *testing.T) {
 		close(callbackInvoked)
 	})
 
-	if err := server.SendNotification(ctx, methods.PromptsChanged, nil); err != nil {
+	notification := struct{}{}
+	if err := server.SendNotification(ctx, methods.PromptsChanged, notification); err != nil {
 		t.Fatalf("Failed to send notification: %v", err)
 	}
 
