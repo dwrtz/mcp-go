@@ -36,8 +36,8 @@ func TestPingPong(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := NewServer(serverTransport)
-	cli := NewClient(clientTransport)
+	srv := NewBase(serverTransport)
+	cli := NewBase(clientTransport)
 
 	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -107,8 +107,8 @@ func TestNotifications(t *testing.T) {
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
 
 	// Create server and client
-	srv := NewServer(serverTransport)
-	cli := NewClient(clientTransport)
+	srv := NewBase(serverTransport)
+	cli := NewBase(clientTransport)
 
 	// Context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

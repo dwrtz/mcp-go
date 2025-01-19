@@ -11,11 +11,11 @@ import (
 
 // SamplingServer provides server-side sampling functionality
 type SamplingServer struct {
-	base *base.Server
+	base *base.Base
 }
 
 // NewSamplingServer creates a new SamplingServer
-func NewSamplingServer(base *base.Server) *SamplingServer {
+func NewSamplingServer(base *base.Base) *SamplingServer {
 	s := &SamplingServer{
 		base: base,
 	}

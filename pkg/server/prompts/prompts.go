@@ -13,7 +13,7 @@ import (
 
 // PromptsServer provides server-side prompt functionality
 type PromptsServer struct {
-	base *base.Server
+	base *base.Base
 	mu   sync.RWMutex
 
 	prompts       []types.Prompt
@@ -24,7 +24,7 @@ type PromptsServer struct {
 type PromptGetter func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error)
 
 // NewPromptsServer creates a new PromptsServer
-func NewPromptsServer(base *base.Server) *PromptsServer {
+func NewPromptsServer(base *base.Base) *PromptsServer {
 	s := &PromptsServer{
 		base:          base,
 		promptGetters: make(map[string]PromptGetter),

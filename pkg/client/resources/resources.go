@@ -12,11 +12,11 @@ import (
 
 // ResourcesClient provides client-side resource functionality
 type ResourcesClient struct {
-	base *base.Client
+	base *base.Base
 }
 
 // NewResourcesClient creates a new ResourcesClient
-func NewResourcesClient(base *base.Client) *ResourcesClient {
+func NewResourcesClient(base *base.Base) *ResourcesClient {
 	return &ResourcesClient{base: base}
 }
 

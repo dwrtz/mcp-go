@@ -15,13 +15,13 @@ import (
 
 // setupTest creates a server, a client, and a ToolsServer instance, then starts them.
 // It returns a cleanup function that should be deferred to properly close everything.
-func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Client, func()) {
+func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 
 	// Create base server and client
-	baseServer := base.NewServer(serverTransport)
-	baseClient := base.NewClient(clientTransport)
+	baseServer := base.NewBase(serverTransport)
+	baseClient := base.NewBase(clientTransport)
 
 	// Create tools server
 	toolsServer := NewToolsServer(baseServer)

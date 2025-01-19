@@ -18,7 +18,7 @@ import (
 
 // Server represents a Model Context Protocol server
 type Server struct {
-	base *base.Server
+	base *base.Base
 
 	// Feature-specific servers
 	roots     *roots.RootsServer
@@ -36,16 +36,6 @@ type Server struct {
 
 // ServerOption is a function that configures a Server
 type ServerOption func(*Server)
-
-// WithRoots enables roots functionality on the server
-func WithRoots() ServerOption {
-	return func(s *Server) {
-		s.capabilities.Resources = &types.ResourcesServerCapabilities{
-			Subscribe:   true,
-			ListChanged: true,
-		}
-	}
-}
 
 // WithResources enables resources functionality on the server
 func WithResources() ServerOption {
@@ -75,17 +65,10 @@ func WithTools() ServerOption {
 	}
 }
 
-// WithSampling enables sampling functionality on the server
-func WithSampling() ServerOption {
-	return func(s *Server) {
-		s.capabilities.Sampling = &types.SamplingServerCapabilities{}
-	}
-}
-
 // NewServer creates a new MCP server
 func NewServer(transport transport.Transport, opts ...ServerOption) *Server {
 	s := &Server{
-		base: base.NewServer(transport),
+		base: base.NewBase(transport),
 		info: types.Implementation{
 			Name:    "mcp-go",
 			Version: "0.1.0",

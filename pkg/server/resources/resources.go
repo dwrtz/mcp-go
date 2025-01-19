@@ -13,7 +13,7 @@ import (
 
 // ResourcesServer provides server-side resource functionality
 type ResourcesServer struct {
-	base *base.Server
+	base *base.Base
 	mu   sync.RWMutex
 
 	resources       []types.Resource
@@ -26,7 +26,7 @@ type ResourcesServer struct {
 type ContentHandler func(ctx context.Context, uri string) ([]types.ResourceContent, error)
 
 // NewResourcesServer creates a new ResourcesServer
-func NewResourcesServer(base *base.Server) *ResourcesServer {
+func NewResourcesServer(base *base.Base) *ResourcesServer {
 	s := &ResourcesServer{
 		base:            base,
 		subscriptions:   make(map[string][]string),

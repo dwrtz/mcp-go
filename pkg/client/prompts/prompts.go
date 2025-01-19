@@ -12,11 +12,11 @@ import (
 
 // PromptsClient provides client-side prompt functionality
 type PromptsClient struct {
-	base *base.Client
+	base *base.Base
 }
 
 // NewPromptsClient creates a new PromptsClient
-func NewPromptsClient(base *base.Client) *PromptsClient {
+func NewPromptsClient(base *base.Base) *PromptsClient {
 	return &PromptsClient{base: base}
 }
 

@@ -12,11 +12,11 @@ import (
 
 // RootsClient provides client-side roots functionality
 type RootsClient struct {
-	base *base.Client
+	base *base.Base
 }
 
 // NewRootsClient creates a new RootsClient
-func NewRootsClient(base *base.Client) *RootsClient {
+func NewRootsClient(base *base.Base) *RootsClient {
 	return &RootsClient{base: base}
 }
 

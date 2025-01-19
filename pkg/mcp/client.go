@@ -17,7 +17,7 @@ import (
 
 // Client represents a Model Context Protocol client
 type Client struct {
-	base *base.Client
+	base *base.Base
 
 	// Feature-specific clients
 	roots     *roots.RootsClient
@@ -30,17 +30,38 @@ type Client struct {
 	capabilities types.ClientCapabilities
 }
 
-// NewClient creates a new MCP client
-func NewClient(transport transport.Transport) *Client {
-	return &Client{
-		base: base.NewClient(transport),
-		capabilities: types.ClientCapabilities{
-			Roots: &types.RootsClientCapabilities{
-				ListChanged: true,
-			},
-			Sampling: &types.SamplingClientCapabilities{},
-		},
+// ClientOption is a function that configures a Client
+type ClientOption func(*Client)
+
+// WithRoots enables roots functionality on the client
+func WithRoots() ClientOption {
+	return func(c *Client) {
+		c.capabilities.Roots = &types.RootsClientCapabilities{
+			ListChanged: true,
+		}
 	}
+}
+
+// WithSampling enables sampling functionality on the client
+func WithSampling() ClientOption {
+	return func(c *Client) {
+		c.capabilities.Sampling = &types.SamplingClientCapabilities{}
+	}
+}
+
+// NewClient creates a new MCP client
+func NewClient(transport transport.Transport, opts ...ClientOption) *Client {
+	c := &Client{
+		base:         base.NewBase(transport),
+		capabilities: types.ClientCapabilities{},
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
 }
 
 // Initialize initiates the connection with the server
@@ -74,7 +95,6 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
-		c.roots = roots.NewRootsClient(c.base)
 		c.resources = resources.NewResourcesClient(c.base)
 	}
 
@@ -86,9 +106,13 @@ func (c *Client) Initialize(ctx context.Context) error {
 		c.tools = tools.NewToolsClient(c.base)
 	}
 
-	// Initialize sampling client if we declared the capability
+	// Initialize sampling and roots client if we declared the capability
 	if c.capabilities.Sampling != nil {
 		c.sampling = sampling.NewSamplingClient(c.base)
+	}
+
+	if c.capabilities.Roots != nil {
+		c.roots = roots.NewRootsClient(c.base)
 	}
 
 	// Send initialized notification
@@ -134,27 +158,27 @@ func (c *Client) SupportsSampling() bool {
 	return c.sampling != nil
 }
 
-// Roots returns the roots client if the server supports it
+// Roots returns the roots client
 func (c *Client) Roots() *roots.RootsClient {
 	return c.roots
 }
 
-// Resources returns the resources client if the server supports it
+// Resources returns the resources client
 func (c *Client) Resources() *resources.ResourcesClient {
 	return c.resources
 }
 
-// Prompts returns the prompts client if the server supports it
+// Prompts returns the prompts client
 func (c *Client) Prompts() *prompts.PromptsClient {
 	return c.prompts
 }
 
-// Tools returns the tools client if the server supports it
+// Tools returns the tools client
 func (c *Client) Tools() *tools.ToolsClient {
 	return c.tools
 }
 
-// Sampling returns the sampling client if supported
+// Sampling returns the sampling client
 func (c *Client) Sampling() *sampling.SamplingClient {
 	return c.sampling
 }

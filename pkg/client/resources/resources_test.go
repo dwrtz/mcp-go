@@ -13,11 +13,11 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *ResourcesClient, *base.Server, func()) {
+func setupTest(t *testing.T) (context.Context, *ResourcesClient, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
-	baseServer := base.NewServer(serverTransport)
-	baseClient := base.NewClient(clientTransport)
+	baseServer := base.NewBase(serverTransport)
+	baseClient := base.NewBase(clientTransport)
 
 	resourcesClient := NewResourcesClient(baseClient)
 

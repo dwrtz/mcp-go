@@ -12,11 +12,11 @@ import (
 
 // SamplingClient provides client-side sampling functionality
 type SamplingClient struct {
-	base *base.Client
+	base *base.Base
 }
 
 // NewSamplingClient creates a new SamplingClient
-func NewSamplingClient(base *base.Client) *SamplingClient {
+func NewSamplingClient(base *base.Base) *SamplingClient {
 	return &SamplingClient{base: base}
 }
 

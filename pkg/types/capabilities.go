@@ -39,9 +39,6 @@ type ServerCapabilities struct {
 
 	// Tools capability
 	Tools *ToolsServerCapabilities `json:"tools,omitempty"`
-
-	// Sampling capability
-	Sampling *SamplingServerCapabilities `json:"sampling,omitempty"`
 }
 
 // LoggingServerCapabilities represents logging-specific server capabilities
@@ -68,9 +65,4 @@ type ResourcesServerCapabilities struct {
 type ToolsServerCapabilities struct {
 	// Whether the server supports notifications for changes to the tool list
 	ListChanged bool `json:"listChanged,omitempty"`
-}
-
-// SamplingServerCapabilities represents sampling-specific server capabilities
-type SamplingServerCapabilities struct {
-	// Currently empty as per spec, but included for future extensibility
 }

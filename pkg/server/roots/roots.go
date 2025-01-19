@@ -12,13 +12,13 @@ import (
 
 // RootsServer provides server-side roots functionality
 type RootsServer struct {
-	base  *base.Server
+	base  *base.Base
 	mu    sync.RWMutex
 	roots []types.Root
 }
 
 // NewRootsServer creates a new RootsServer
-func NewRootsServer(base *base.Server) *RootsServer {
+func NewRootsServer(base *base.Base) *RootsServer {
 	s := &RootsServer{
 		base:  base,
 		roots: make([]types.Root, 0),
