@@ -7,6 +7,8 @@ import (
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/client"
+	"github.com/dwrtz/mcp-go/pkg/client/prompts"
+	"github.com/dwrtz/mcp-go/pkg/client/resources"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -17,8 +19,8 @@ type Client struct {
 
 	// Feature-specific clients
 	roots     *client.RootsClient
-	resources *client.ResourcesClient
-	prompts   *client.PromptsClient
+	resources *resources.ResourcesClient
+	prompts   *prompts.PromptsClient
 	tools     *client.ToolsClient
 	sampling  *client.SamplingClient
 
@@ -71,11 +73,11 @@ func (c *Client) Initialize(ctx context.Context) error {
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
 		c.roots = client.NewRootsClient(c.base)
-		c.resources = client.NewResourcesClient(c.base)
+		c.resources = resources.NewResourcesClient(c.base)
 	}
 
 	if result.Capabilities.Prompts != nil {
-		c.prompts = client.NewPromptsClient(c.base)
+		c.prompts = prompts.NewPromptsClient(c.base)
 	}
 
 	if result.Capabilities.Tools != nil {
@@ -136,12 +138,12 @@ func (c *Client) Roots() *client.RootsClient {
 }
 
 // Resources returns the resources client if the server supports it
-func (c *Client) Resources() *client.ResourcesClient {
+func (c *Client) Resources() *resources.ResourcesClient {
 	return c.resources
 }
 
 // Prompts returns the prompts client if the server supports it
-func (c *Client) Prompts() *client.PromptsClient {
+func (c *Client) Prompts() *prompts.PromptsClient {
 	return c.prompts
 }
 
