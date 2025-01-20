@@ -39,6 +39,7 @@ func WithRoots() ClientOption {
 		c.capabilities.Roots = &types.RootsClientCapabilities{
 			ListChanged: true,
 		}
+		c.roots = roots.NewRootsClient(c.base)
 	}
 }
 
@@ -46,6 +47,7 @@ func WithRoots() ClientOption {
 func WithSampling() ClientOption {
 	return func(c *Client) {
 		c.capabilities.Sampling = &types.SamplingClientCapabilities{}
+		c.sampling = sampling.NewSamplingClient(c.base)
 	}
 }
 
@@ -104,15 +106,6 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	if result.Capabilities.Tools != nil {
 		c.tools = tools.NewToolsClient(c.base)
-	}
-
-	// Initialize sampling and roots client if we declared the capability
-	if c.capabilities.Sampling != nil {
-		c.sampling = sampling.NewSamplingClient(c.base)
-	}
-
-	if c.capabilities.Roots != nil {
-		c.roots = roots.NewRootsClient(c.base)
 	}
 
 	// Send initialized notification

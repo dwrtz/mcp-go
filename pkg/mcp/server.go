@@ -44,6 +44,7 @@ func WithResources() ServerOption {
 			Subscribe:   true,
 			ListChanged: true,
 		}
+		s.resources = resources.NewResourcesServer(s.base)
 	}
 }
 
@@ -53,6 +54,7 @@ func WithPrompts() ServerOption {
 		s.capabilities.Prompts = &types.PromptsServerCapabilities{
 			ListChanged: true,
 		}
+		s.prompts = prompts.NewPromptsServer(s.base)
 	}
 }
 
@@ -62,6 +64,7 @@ func WithTools() ServerOption {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,
 		}
+		s.tools = tools.NewToolsServer(s.base)
 	}
 }
 
@@ -134,21 +137,11 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 		return nil, fmt.Errorf("client protocol version %s not supported", req.ProtocolVersion)
 	}
 
-	// Initialize feature-specific servers based on capabilities
-	if s.capabilities.Resources != nil {
+	// Initialize roots and sampling server if client supports it
+	if req.Capabilities.Roots != nil {
 		s.roots = roots.NewRootsServer(s.base)
-		s.resources = resources.NewResourcesServer(s.base)
 	}
 
-	if s.capabilities.Prompts != nil {
-		s.prompts = prompts.NewPromptsServer(s.base)
-	}
-
-	if s.capabilities.Tools != nil {
-		s.tools = tools.NewToolsServer(s.base)
-	}
-
-	// Initialize sampling server if client supports it
 	if req.Capabilities.Sampling != nil {
 		s.sampling = sampling.NewSamplingServer(s.base)
 	}
