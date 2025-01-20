@@ -3,7 +3,7 @@ package roots
 import (
 	"context"
 	"encoding/json"
-	"sync"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -12,47 +12,42 @@ import (
 
 // RootsServer provides server-side roots functionality
 type RootsServer struct {
-	base  *base.Base
-	mu    sync.RWMutex
-	roots []types.Root
+	base *base.Base
 }
 
 // NewRootsServer creates a new RootsServer
 func NewRootsServer(base *base.Base) *RootsServer {
-	s := &RootsServer{
-		base:  base,
-		roots: make([]types.Root, 0),
-	}
-
-	// Register request handler for roots/list
-	base.RegisterRequestHandler(methods.ListRoots, s.handleListRoots)
-
-	return s
+	return &RootsServer{base: base}
 }
 
-// SetRoots updates the list of available roots
-func (s *RootsServer) SetRoots(ctx context.Context, roots []types.Root) error {
-	// Validate all roots first
-	for _, root := range roots {
-		if err := root.Validate(); err != nil {
-			return err
-		}
+// List requests the list of available roots from the client
+func (s *RootsServer) List(ctx context.Context) ([]types.Root, error) {
+	req := &types.ListRootsRequest{
+		Method: methods.ListRoots,
 	}
 
-	s.mu.Lock()
-	s.roots = roots
-	s.mu.Unlock()
+	resp, err := s.base.SendRequest(ctx, methods.ListRoots, req)
+	if err != nil {
+		return nil, err
+	}
 
-	// Notify clients of the change
-	return s.base.SendNotification(ctx, methods.RootsChanged, nil)
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
+	}
+
+	// Parse response
+	var result types.ListRootsResult
+	if err := json.Unmarshal(*resp.Result, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse roots list response: %w", err)
+	}
+
+	return result.Roots, nil
 }
 
-// handleListRoots handles the roots/list request
-func (s *RootsServer) handleListRoots(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return &types.ListRootsResult{
-		Roots: s.roots,
-	}, nil
+// OnRootsChanged registers a callback to be called when the roots list changes
+func (s *RootsServer) OnRootsChanged(callback func()) {
+	s.base.RegisterNotificationHandler(methods.RootsChanged, func(ctx context.Context, params json.RawMessage) {
+		callback()
+	})
 }

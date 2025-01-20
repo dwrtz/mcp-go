@@ -3,7 +3,7 @@ package roots
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"sync"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -12,42 +12,35 @@ import (
 
 // RootsClient provides client-side roots functionality
 type RootsClient struct {
-	base *base.Base
+	base  *base.Base
+	mu    sync.RWMutex
+	roots []types.Root
 }
 
 // NewRootsClient creates a new RootsClient
 func NewRootsClient(base *base.Base) *RootsClient {
-	return &RootsClient{base: base}
+	c := &RootsClient{
+		base:  base,
+		roots: make([]types.Root, 0),
+	}
+
+	// Register notification handler for roots/changed
+	base.RegisterRequestHandler(methods.ListRoots, c.handleListRoots)
+
+	return c
 }
 
-// List requests the list of available roots from the server
-func (c *RootsClient) List(ctx context.Context) ([]types.Root, error) {
-	req := &types.ListRootsRequest{
-		Method: methods.ListRoots,
-	}
+func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
+	c.mu.Lock()
+	c.roots = roots
+	c.mu.Unlock()
 
-	resp, err := c.base.SendRequest(ctx, methods.ListRoots, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Check for error response
-	if resp.Error != nil {
-		return nil, resp.Error
-	}
-
-	// Parse response
-	var result types.ListRootsResult
-	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse roots list response: %w", err)
-	}
-
-	return result.Roots, nil
+	return c.base.SendNotification(ctx, methods.RootsChanged, nil)
 }
 
-// OnRootsChanged registers a callback to be called when the roots list changes
-func (c *RootsClient) OnRootsChanged(callback func()) {
-	c.base.RegisterNotificationHandler(methods.RootsChanged, func(ctx context.Context, params json.RawMessage) {
-		callback()
-	})
+// handleListRoots handles the roots/list request
+func (c *RootsClient) handleListRoots(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	return &types.ListRootsResult{
+		Roots: c.roots,
+	}, nil
 }
