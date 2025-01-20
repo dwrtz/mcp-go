@@ -1,6 +1,6 @@
 # Model Context Protocol SDK for Go
 
-A Go implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), enabling seamless integration between LLMs and external data sources/tools.
+A Go implementation of the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
 
 ## Overview
 
