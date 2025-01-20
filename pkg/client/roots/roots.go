@@ -3,6 +3,7 @@ package roots
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/dwrtz/mcp-go/internal/base"
@@ -31,6 +32,13 @@ func NewRootsClient(base *base.Base) *RootsClient {
 }
 
 func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
+	// Validate all roots before setting
+	for _, root := range roots {
+		if err := root.Validate(); err != nil {
+			return fmt.Errorf("invalid root %s: %w", root.URI, err)
+		}
+	}
+
 	c.mu.Lock()
 	c.roots = roots
 	c.mu.Unlock()
