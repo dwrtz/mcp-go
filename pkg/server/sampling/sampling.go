@@ -3,6 +3,7 @@ package sampling
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -16,40 +17,30 @@ type SamplingServer struct {
 
 // NewSamplingServer creates a new SamplingServer
 func NewSamplingServer(base *base.Base) *SamplingServer {
-	s := &SamplingServer{
-		base: base,
-	}
-
-	// Register request handler for sampling/createMessage
-	base.RegisterRequestHandler(methods.SampleCreate, s.handleCreateMessage)
-
-	return s
+	return &SamplingServer{base: base}
 }
 
-func (s *SamplingServer) handleCreateMessage(ctx context.Context, params json.RawMessage) (interface{}, error) {
-	var req types.CreateMessageRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+// CreateMessage requests a sample from the language model
+func (s *SamplingServer) CreateMessage(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
+	resp, err := s.base.SendRequest(ctx, methods.SampleCreate, req)
+	if err != nil {
 		return nil, err
 	}
 
-	// Validate request
-	if len(req.Messages) == 0 {
-		return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
+	// Check for error response
+	if resp.Error != nil {
+		return nil, resp.Error
 	}
 
-	if req.MaxTokens <= 0 {
-		return nil, types.NewError(types.InvalidParams, "maxTokens must be positive")
+	// Check for nil result
+	if resp.Result == nil {
+		return nil, fmt.Errorf("empty response from server")
 	}
 
-	// Process the sampling request through the client's sampling capability
-	// The actual implementation would depend on the specific LLM integration
-	// This is just a placeholder response
-	result := &types.CreateMessageResult{
-		Role:       types.RoleAssistant,
-		Content:    types.TextContent{Type: "text", Text: "Sample response"},
-		Model:      "sample-model",
-		StopReason: "endTurn",
+	var result types.CreateMessageResult
+	if err := json.Unmarshal(*resp.Result, &result); err != nil {
+		return nil, err
 	}
 
-	return result, nil
+	return &result, nil
 }

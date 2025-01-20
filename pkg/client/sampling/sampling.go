@@ -3,7 +3,6 @@ package sampling
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -17,41 +16,41 @@ type SamplingClient struct {
 
 // NewSamplingClient creates a new SamplingClient
 func NewSamplingClient(base *base.Base) *SamplingClient {
-	return &SamplingClient{base: base}
+	c := &SamplingClient{
+		base: base,
+	}
+
+	// Register request handler for sampling/createMessage
+	base.RegisterRequestHandler(methods.SampleCreate, c.handleCreateMessage)
+
+	return c
 }
 
-// CreateMessage requests a sample from the language model
-func (c *SamplingClient) CreateMessage(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
-	resp, err := c.base.SendRequest(ctx, methods.SampleCreate, req)
-	if err != nil {
+func (c *SamplingClient) handleCreateMessage(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	var req types.CreateMessageRequest
+	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, err
 	}
 
-	// Check for error response
-	if resp.Error != nil {
-		return nil, resp.Error
+	// Validate request
+	if len(req.Messages) == 0 {
+		return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
 	}
 
-	// Check for nil result
-	if resp.Result == nil {
-		return nil, fmt.Errorf("empty response from server")
+	if req.MaxTokens <= 0 {
+		return nil, types.NewError(types.InvalidParams, "maxTokens must be positive")
 	}
 
-	var result types.CreateMessageResult
-	if err := json.Unmarshal(*resp.Result, &result); err != nil {
-		return nil, err
+	// Process the sampling request through the client's sampling capability
+	// The actual implementation would depend on the specific LLM integration
+	// This is just a placeholder response
+	// TODO: Implement actual sampling logic
+	result := &types.CreateMessageResult{
+		Role:       types.RoleAssistant,
+		Content:    types.TextContent{Type: "text", Text: "Sample response"},
+		Model:      "sample-model",
+		StopReason: "endTurn",
 	}
 
-	return &result, nil
-}
-
-// CreateMessageWithDefaults is a convenience method for simple sampling requests
-func (c *SamplingClient) CreateMessageWithDefaults(ctx context.Context, messages []types.SamplingMessage) (*types.CreateMessageResult, error) {
-	req := &types.CreateMessageRequest{
-		Method:    methods.SampleCreate,
-		Messages:  messages,
-		MaxTokens: 1000, // Default max tokens
-	}
-
-	return c.CreateMessage(ctx, req)
+	return result, nil
 }
