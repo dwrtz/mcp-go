@@ -19,15 +19,12 @@ type RootsClient struct {
 }
 
 // NewRootsClient creates a new RootsClient
-func NewRootsClient(base *base.Base) *RootsClient {
+func NewRootsClient(base *base.Base, initialRoots []types.Root) *RootsClient {
 	c := &RootsClient{
 		base:  base,
-		roots: make([]types.Root, 0),
+		roots: initialRoots,
 	}
-
-	// Register notification handler for roots/changed
 	base.RegisterRequestHandler(methods.ListRoots, c.handleListRoots)
-
 	return c
 }
 

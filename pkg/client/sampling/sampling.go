@@ -11,13 +11,15 @@ import (
 
 // SamplingClient provides client-side sampling functionality
 type SamplingClient struct {
-	base *base.Base
+	base    *base.Base
+	handler types.SamplingHandler
 }
 
 // NewSamplingClient creates a new SamplingClient
-func NewSamplingClient(base *base.Base) *SamplingClient {
+func NewSamplingClient(base *base.Base, handler types.SamplingHandler) *SamplingClient {
 	c := &SamplingClient{
-		base: base,
+		base:    base,
+		handler: handler,
 	}
 
 	// Register request handler for sampling/createMessage
@@ -31,26 +33,5 @@ func (c *SamplingClient) handleCreateMessage(ctx context.Context, params json.Ra
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, err
 	}
-
-	// Validate request
-	if len(req.Messages) == 0 {
-		return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
-	}
-
-	if req.MaxTokens <= 0 {
-		return nil, types.NewError(types.InvalidParams, "maxTokens must be positive")
-	}
-
-	// Process the sampling request through the client's sampling capability
-	// The actual implementation would depend on the specific LLM integration
-	// This is just a placeholder response
-	// TODO: Implement actual sampling logic
-	result := &types.CreateMessageResult{
-		Role:       types.RoleAssistant,
-		Content:    types.TextContent{Type: "text", Text: "Sample response"},
-		Model:      "sample-model",
-		StopReason: "endTurn",
-	}
-
-	return result, nil
+	return c.handler(ctx, &req)
 }

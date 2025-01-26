@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 )
@@ -154,3 +155,6 @@ func (r CreateMessageResult) MarshalJSON() ([]byte, error) {
 		Content: r.Content,
 	})
 }
+
+// SamplingHandler is a function that handles a sampling request
+type SamplingHandler func(ctx context.Context, req *CreateMessageRequest) (*CreateMessageResult, error)

@@ -34,20 +34,20 @@ type Client struct {
 type ClientOption func(*Client)
 
 // WithRoots enables roots functionality on the client
-func WithRoots() ClientOption {
+func WithRoots(initialRoots []types.Root) ClientOption {
 	return func(c *Client) {
 		c.capabilities.Roots = &types.RootsClientCapabilities{
 			ListChanged: true,
 		}
-		c.roots = roots.NewRootsClient(c.base)
+		c.roots = roots.NewRootsClient(c.base, initialRoots)
 	}
 }
 
 // WithSampling enables sampling functionality on the client
-func WithSampling() ClientOption {
+func WithSampling(handler types.SamplingHandler) ClientOption {
 	return func(c *Client) {
 		c.capabilities.Sampling = &types.SamplingClientCapabilities{}
-		c.sampling = sampling.NewSamplingClient(c.base)
+		c.sampling = sampling.NewSamplingClient(c.base, handler)
 	}
 }
 
