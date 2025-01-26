@@ -22,7 +22,13 @@ func setupTest(t *testing.T) (context.Context, *RootsClient, *base.Base, func())
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	rootsClient := NewRootsClient(baseClient)
+	initialRoots := []types.Root{
+		{
+			URI:  "file:///test/dir",
+			Name: "Test Directory",
+		},
+	}
+	rootsClient := NewRootsClient(baseClient, initialRoots)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {

@@ -17,12 +17,30 @@ func setupTest(t *testing.T) (context.Context, *base.Base, *SamplingClient, func
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 
-	// Create server-side base and client that will make requests
 	baseServer := base.NewBase(serverTransport)
-
-	// Create client-side base and sampling client that will handle requests
 	baseClient := base.NewBase(clientTransport)
-	samplingClient := NewSamplingClient(baseClient)
+
+	handler := func(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
+		// Validate request
+		if len(req.Messages) == 0 {
+			return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
+		}
+		if req.MaxTokens <= 0 {
+			return nil, types.NewError(types.InvalidParams, "maxTokens must be positive")
+		}
+
+		return &types.CreateMessageResult{
+			Role: types.RoleAssistant,
+			Content: types.TextContent{
+				Type: "text",
+				Text: "Sample response",
+			},
+			Model:      "sample-model",
+			StopReason: "endTurn",
+		}, nil
+	}
+
+	samplingClient := NewSamplingClient(baseClient, handler)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
