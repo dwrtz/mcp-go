@@ -140,6 +140,10 @@ func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (
 	// Initialize roots and sampling server if client supports it
 	if req.Capabilities.Roots != nil {
 		s.roots = roots.NewRootsServer(s.base)
+		s.OnRootsChanged(func() {
+			// default noop
+			s.base.Logf("from client: %s", methods.RootsChanged)
+		})
 	}
 
 	if req.Capabilities.Sampling != nil {

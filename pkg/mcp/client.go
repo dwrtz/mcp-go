@@ -98,14 +98,30 @@ func (c *Client) Initialize(ctx context.Context) error {
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
 		c.resources = resources.NewResourcesClient(c.base)
+		c.OnResourceListChanged(func() {
+			// default noop
+			c.base.Logf("from server: %s", methods.ResourceListChanged)
+		})
+		c.OnResourceUpdated(func(uri string) {
+			// default noop
+			c.base.Logf("from server: %s %s", methods.ResourceUpdated, uri)
+		})
 	}
 
 	if result.Capabilities.Prompts != nil {
 		c.prompts = prompts.NewPromptsClient(c.base)
+		c.OnPromptListChanged(func() {
+			// default noop
+			c.base.Logf("from server: %s", methods.PromptsChanged)
+		})
 	}
 
 	if result.Capabilities.Tools != nil {
 		c.tools = tools.NewToolsClient(c.base)
+		c.OnToolListChanged(func() {
+			// default noop
+			c.base.Logf("from server: %s", methods.ToolsChanged)
+		})
 	}
 
 	// Send initialized notification
