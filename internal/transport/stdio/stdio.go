@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/types"
 	"github.com/sourcegraph/jsonrpc2"
 )
@@ -39,7 +40,7 @@ type StdioTransport struct {
 	conn   *jsonrpc2.Conn
 	done   chan struct{}
 	mu     sync.Mutex
-	logger *transport.Logger
+	logger *logger.Logger
 	stdin  io.ReadCloser
 	stdout io.WriteCloser
 }
@@ -168,9 +169,9 @@ func (t *StdioTransport) Logf(format string, args ...interface{}) {
 }
 
 // SetLogger sets the logger for the transport
-func (t *StdioTransport) SetLogger(logger transport.Logger) {
-	t.logger = &logger
-	t.router.SetLogger(logger)
+func (t *StdioTransport) SetLogger(l logger.Logger) {
+	t.logger = &l
+	t.router.SetLogger(l)
 }
 
 // jsonRPCHandler implements jsonrpc2.Handler

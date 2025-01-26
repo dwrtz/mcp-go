@@ -14,6 +14,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/server/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -52,9 +53,9 @@ type Server struct {
 type ServerOption func(*Server)
 
 // WithLogger sets the logger for the server
-func WithLogger(logger transport.Logger) ServerOption {
+func WithLogger(l logger.Logger) ServerOption {
 	return func(s *Server) {
-		s.base.SetLogger(logger)
+		s.base.SetLogger(l)
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/client/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -78,9 +79,9 @@ type Client struct {
 type ClientOption func(*Client)
 
 // WithLogger sets the logger for the client
-func WithLogger(logger transport.Logger) ClientOption {
+func WithLogger(l logger.Logger) ClientOption {
 	return func(c *Client) {
-		c.base.SetLogger(logger)
+		c.base.SetLogger(l)
 	}
 }
 

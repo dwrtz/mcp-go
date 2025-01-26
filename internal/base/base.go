@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
@@ -91,8 +92,8 @@ func (b *Base) Logf(format string, args ...interface{}) {
 }
 
 // SetLogger sets the logger for the base
-func (b *Base) SetLogger(logger transport.Logger) {
-	b.transport.SetLogger(logger)
+func (b *Base) SetLogger(l logger.Logger) {
+	b.transport.SetLogger(l)
 }
 
 // SendRequest sends a request and waits for the response

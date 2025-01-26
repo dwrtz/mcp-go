@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
@@ -34,12 +35,7 @@ type Transport interface {
 	Logf(format string, args ...interface{})
 
 	// SetLogger sets the logger for the transport
-	SetLogger(logger Logger)
-}
-
-type Logger interface {
-	// Logf prints a formatted log message
-	Logf(format string, args ...interface{})
+	SetLogger(l logger.Logger)
 }
 
 // MessageRouter handles routing of messages to appropriate channels
@@ -54,7 +50,7 @@ type MessageRouter struct {
 	done chan struct{}
 	once sync.Once
 
-	logger *Logger
+	logger *logger.Logger
 }
 
 const defaultChannelSize = 10
@@ -78,8 +74,8 @@ func (r *MessageRouter) Logf(format string, args ...interface{}) {
 }
 
 // SetLogger sets the logger for the transport
-func (r *MessageRouter) SetLogger(logger Logger) {
-	r.logger = &logger
+func (r *MessageRouter) SetLogger(l logger.Logger) {
+	r.logger = &l
 }
 
 // Handle implements MessageHandler.Handle

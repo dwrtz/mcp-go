@@ -5,13 +5,14 @@ import (
 
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 )
 
 // NewMockPipeTransports returns two separate transports
 // (e.g. serverTransport, clientTransport) that communicate
 // with each other via in-process pipes. Both sides implement
 // transport.Transport using stdio pipes.
-func NewMockPipeTransports(logger transport.Logger) (transport.Transport, transport.Transport) {
+func NewMockPipeTransports(l logger.Logger) (transport.Transport, transport.Transport) {
 	// Create the pipe pairs
 	serverStdinR, serverStdinW := io.Pipe()
 	serverStdoutR, serverStdoutW := io.Pipe()
@@ -35,9 +36,9 @@ func NewMockPipeTransports(logger transport.Logger) (transport.Transport, transp
 	//   serverTransport: reads from serverStdinR / writes to serverStdoutW
 	//   clientTransport: reads from clientStdinR / writes to clientStdoutW
 	serverTransport := stdio.NewStdioTransport(serverStdinR, serverStdoutW)
-	serverTransport.SetLogger(logger)
+	serverTransport.SetLogger(l)
 	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW)
-	clientTransport.SetLogger(logger)
+	clientTransport.SetLogger(l)
 
 	return serverTransport, clientTransport
 }
