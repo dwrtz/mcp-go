@@ -20,8 +20,8 @@ func NewRootsServer(base *base.Base) *RootsServer {
 	return &RootsServer{base: base}
 }
 
-// List requests the list of available roots from the client
-func (s *RootsServer) List(ctx context.Context) ([]types.Root, error) {
+// ListRoots requests the list of available roots from the client
+func (s *RootsServer) ListRoots(ctx context.Context) ([]types.Root, error) {
 	req := &types.ListRootsRequest{
 		Method: methods.ListRoots,
 	}

@@ -78,7 +78,7 @@ func TestRootsServer_List(t *testing.T) {
 				return tt.clientResponse, nil
 			})
 
-			roots, err := server.List(ctx)
+			roots, err := server.ListRoots(ctx)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
@@ -148,7 +148,7 @@ func TestRootsServer_InvalidRoots(t *testing.T) {
 	})
 
 	// Test listing
-	roots, err := server.List(ctx)
+	roots, err := server.ListRoots(ctx)
 	if err != nil {
 		t.Fatalf("List() returned unexpected error: %v", err)
 	}
@@ -180,11 +180,11 @@ func TestRootsServer_ListErrorHandling(t *testing.T) {
 	})
 
 	// Test listing
-	_, err := server.List(ctx)
+	_, err := server.ListRoots(ctx)
 
 	// Verify error
 	if err == nil {
-		t.Fatal("Expected error from List(), got nil")
+		t.Fatal("Expected error from ListRoots(), got nil")
 	}
 
 	// Check if it's the correct error
