@@ -3,6 +3,7 @@ package base
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -214,8 +215,9 @@ func (b *Base) handleRequest(ctx context.Context, msg *types.Message) {
 	}
 
 	if msg.Params == nil {
-		err := types.NewError(types.InvalidParams, "missing params")
-		b.SendResponse(ctx, *msg.ID, nil, err)
+		respErr := types.NewError(types.InvalidParams,
+			fmt.Sprintf("missing params for method=%q, requestID=%v", msg.Method, *msg.ID))
+		_ = b.SendResponse(ctx, *msg.ID, nil, respErr)
 		return
 	}
 
@@ -225,13 +227,14 @@ func (b *Base) handleRequest(ctx context.Context, msg *types.Message) {
 
 	if ok {
 		result, err := handler(ctx, *msg.Params)
-		b.SendResponse(ctx, *msg.ID, result, err)
+		_ = b.SendResponse(ctx, *msg.ID, result, err)
 		return
 	}
 
 	// Method not found
-	err := types.NewError(types.MethodNotFound, "method not found: "+msg.Method)
-	b.SendResponse(ctx, *msg.ID, nil, err)
+	respErr := types.NewError(types.MethodNotFound,
+		fmt.Sprintf("method not found: %q (requestID=%v)", msg.Method, *msg.ID))
+	_ = b.SendResponse(ctx, *msg.ID, nil, respErr)
 }
 
 // handleNotification handles incoming notifications

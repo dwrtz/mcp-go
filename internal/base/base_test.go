@@ -3,45 +3,40 @@ package base
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"testing"
 	"time"
 
+	"github.com/dwrtz/mcp-go/internal/mock"
 	"github.com/dwrtz/mcp-go/internal/testutil"
-	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 )
 
+func setupTest(t *testing.T) (context.Context, *Base, *Base, func()) {
+	logger := testutil.NewTestLogger(t)
+	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
+	baseServer := NewBase(serverTransport)
+	baseClient := NewBase(clientTransport)
+
+	ctx := context.Background()
+	if err := baseServer.Start(ctx); err != nil {
+		t.Fatalf("Failed to start server: %v", err)
+	}
+	if err := baseClient.Start(ctx); err != nil {
+		t.Fatalf("Failed to start client: %v", err)
+	}
+
+	cleanup := func() {
+		baseClient.Close()
+		baseServer.Close()
+	}
+
+	return ctx, baseServer, baseClient, cleanup
+}
+
 func TestPingPong(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
-
-	// Create pipes to simulate in-proc stdio
-	serverStdinR, serverStdinW := io.Pipe()
-	serverStdoutR, serverStdoutW := io.Pipe()
-	clientStdinR, clientStdinW := io.Pipe()
-	clientStdoutR, clientStdoutW := io.Pipe()
-
-	// Wire up pipes
-	go func() {
-		defer serverStdinW.Close()
-		io.Copy(serverStdinW, clientStdoutR)
-	}()
-	go func() {
-		defer clientStdinW.Close()
-		io.Copy(clientStdinW, serverStdoutR)
-	}()
-
-	// Create transports
-	serverTransport := stdio.NewStdioTransport(serverStdinR, serverStdoutW, logger)
-	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
-
-	// Create server and client
-	srv := NewBase(serverTransport)
-	cli := NewBase(clientTransport)
-
-	// Context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx, srv, cli, cleanup := setupTest(t)
+	defer cleanup()
 
 	// Register ping handler on server
 	srv.RegisterRequestHandler(methods.Ping, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
@@ -78,41 +73,12 @@ func TestPingPong(t *testing.T) {
 	}
 	logger.Logf("Client received expected response")
 
-	// Clean up
-	cli.Close()
-	srv.Close()
 }
 
 func TestNotifications(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
-
-	// Create pipes to simulate in-proc stdio
-	serverStdinR, serverStdinW := io.Pipe()
-	serverStdoutR, serverStdoutW := io.Pipe()
-	clientStdinR, clientStdinW := io.Pipe()
-	clientStdoutR, clientStdoutW := io.Pipe()
-
-	// Wire up pipes
-	go func() {
-		defer serverStdinW.Close()
-		io.Copy(serverStdinW, clientStdoutR)
-	}()
-	go func() {
-		defer clientStdinW.Close()
-		io.Copy(clientStdinW, serverStdoutR)
-	}()
-
-	// Create transports
-	serverTransport := stdio.NewStdioTransport(serverStdinR, serverStdoutW, logger)
-	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
-
-	// Create server and client
-	srv := NewBase(serverTransport)
-	cli := NewBase(clientTransport)
-
-	// Context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx, srv, cli, cleanup := setupTest(t)
+	defer cleanup()
 
 	// Channel to track received notifications
 	receivedNotification := make(chan struct{})
@@ -152,7 +118,4 @@ func TestNotifications(t *testing.T) {
 		t.Fatal("Timeout waiting for notification")
 	}
 
-	// Clean up
-	cli.Close()
-	srv.Close()
 }
