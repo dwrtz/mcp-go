@@ -1,8 +1,10 @@
-package mcp
+package client
 
 import (
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/client/prompts"
@@ -11,9 +13,51 @@ import (
 	"github.com/dwrtz/mcp-go/internal/client/sampling"
 	"github.com/dwrtz/mcp-go/internal/client/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
+
+// NewDefaultClient creates an MCP client with default settings
+func NewDefaultClient(ctx context.Context, connectString string, opts ...ClientOption) (*Client, error) {
+	// Validate connectString
+	if connectString == "" {
+		return nil, fmt.Errorf("connectString is required")
+	}
+
+	// 1. Start child process
+	cmd := exec.Command(connectString)
+	cmd.Stderr = os.Stderr
+
+	// 2. Create pipes for stdio
+	serverOut, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdout pipe for server: %w", err)
+	}
+	serverIn, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stdin pipe for server: %w", err)
+	}
+
+	// 3. Start the process
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start server process: %w", err)
+	}
+
+	// 4. Create the stdio transport
+	t := stdio.NewStdioTransport(serverOut, serverIn)
+
+	// 5. Create the client with the user's options
+	c := NewClient(t, opts...)
+
+	// 6. Start the transport
+	if err := c.Start(ctx); err != nil {
+		cmd.Process.Kill()
+		return nil, fmt.Errorf("failed to start client: %w", err)
+	}
+
+	return c, nil
+}
 
 // Client represents a Model Context Protocol client
 type Client struct {
@@ -32,6 +76,13 @@ type Client struct {
 
 // ClientOption is a function that configures a Client
 type ClientOption func(*Client)
+
+// WithLogger sets the logger for the client
+func WithLogger(logger transport.Logger) ClientOption {
+	return func(c *Client) {
+		c.base.SetLogger(logger)
+	}
+}
 
 // WithRoots enables roots functionality on the client
 func WithRoots(initialRoots []types.Root) ClientOption {

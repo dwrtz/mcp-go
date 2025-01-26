@@ -12,8 +12,8 @@ import (
 )
 
 func TestNewMessageRouter(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	if router.Requests == nil {
 		t.Error("Requests channel not initialized")
@@ -33,8 +33,8 @@ func TestNewMessageRouter(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_Request(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	ctx := context.Background()
 	msg := &types.Message{
@@ -65,8 +65,8 @@ func TestMessageRouter_Handle_Request(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_Response(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	ctx := context.Background()
 	rawResult := json.RawMessage(`{"status":"ok"}`)
@@ -97,8 +97,8 @@ func TestMessageRouter_Handle_Response(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_Notification(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	ctx := context.Background()
 	msg := &types.Message{
@@ -127,8 +127,8 @@ func TestMessageRouter_Handle_Notification(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_FullChannels(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	// Fill up channels
 	for i := 0; i < cap(router.Requests); i++ {
@@ -165,8 +165,8 @@ func TestMessageRouter_Handle_FullChannels(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_AfterClose(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	router.Close()
 
@@ -181,8 +181,8 @@ func TestMessageRouter_Handle_AfterClose(t *testing.T) {
 }
 
 func TestMessageRouter_Handle_CancelledContext(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -197,8 +197,8 @@ func TestMessageRouter_Handle_CancelledContext(t *testing.T) {
 }
 
 func TestMessageRouter_Close(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	// Test that close is idempotent
 	router.Close()
@@ -251,8 +251,8 @@ func TestMessageRouter_Close(t *testing.T) {
 }
 
 func TestMessageRouter_ConcurrentHandling(t *testing.T) {
-	logger := testutil.NewTestLogger(t)
-	router := NewMessageRouter(logger)
+	router := NewMessageRouter()
+	router.SetLogger(testutil.NewTestLogger(t))
 
 	const numMessages = 10 // Reduced from 100 to prevent channel overflow
 	var wg sync.WaitGroup

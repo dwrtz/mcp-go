@@ -34,8 +34,10 @@ func NewMockPipeTransports(logger transport.Logger) (transport.Transport, transp
 	// Build two transports using StdioTransport
 	//   serverTransport: reads from serverStdinR / writes to serverStdoutW
 	//   clientTransport: reads from clientStdinR / writes to clientStdoutW
-	serverTransport := stdio.NewStdioTransport(serverStdinR, serverStdoutW, logger)
-	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW, logger)
+	serverTransport := stdio.NewStdioTransport(serverStdinR, serverStdoutW)
+	serverTransport.SetLogger(logger)
+	clientTransport := stdio.NewStdioTransport(clientStdinR, clientStdoutW)
+	clientTransport.SetLogger(logger)
 
 	return serverTransport, clientTransport
 }

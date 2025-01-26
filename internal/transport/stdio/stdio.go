@@ -39,16 +39,16 @@ type StdioTransport struct {
 	conn   *jsonrpc2.Conn
 	done   chan struct{}
 	mu     sync.Mutex
-	logger transport.Logger
+	logger *transport.Logger
 	stdin  io.ReadCloser
 	stdout io.WriteCloser
 }
 
-func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser, logger transport.Logger) *StdioTransport {
+func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser) *StdioTransport {
 	return &StdioTransport{
-		router: transport.NewMessageRouter(logger),
+		router: transport.NewMessageRouter(),
 		done:   make(chan struct{}),
-		logger: logger,
+		logger: nil,
 		stdin:  stdin,
 		stdout: stdout,
 	}
@@ -162,7 +162,15 @@ func (t *StdioTransport) Done() <-chan struct{} {
 }
 
 func (t *StdioTransport) Logf(format string, args ...interface{}) {
-	t.logger.Logf(format, args...)
+	if t.logger != nil {
+		(*t.logger).Logf(format, args...)
+	}
+}
+
+// SetLogger sets the logger for the transport
+func (t *StdioTransport) SetLogger(logger transport.Logger) {
+	t.logger = &logger
+	t.router.SetLogger(logger)
 }
 
 // jsonRPCHandler implements jsonrpc2.Handler

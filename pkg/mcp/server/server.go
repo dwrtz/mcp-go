@@ -1,9 +1,10 @@
-package mcp
+package server
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/dwrtz/mcp-go/internal/base"
 	"github.com/dwrtz/mcp-go/internal/server/prompts"
@@ -12,9 +13,22 @@ import (
 	"github.com/dwrtz/mcp-go/internal/server/sampling"
 	"github.com/dwrtz/mcp-go/internal/server/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/methods"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
+
+// NewDefaultServer creates an MCP server with default settings
+func NewDefaultServer(opts ...ServerOption) *Server {
+
+	// Create transport
+	t := stdio.NewStdioTransport(os.Stdin, os.Stdout)
+
+	// Create server
+	s := NewServer(t, opts...)
+
+	return s
+}
 
 // Server represents a Model Context Protocol server
 type Server struct {
@@ -36,6 +50,13 @@ type Server struct {
 
 // ServerOption is a function that configures a Server
 type ServerOption func(*Server)
+
+// WithLogger sets the logger for the server
+func WithLogger(logger transport.Logger) ServerOption {
+	return func(s *Server) {
+		s.base.SetLogger(logger)
+	}
+}
 
 // WithResources enables resources functionality on the server
 func WithResources(initialResources []types.Resource, initialTemplates []types.ResourceTemplate) ServerOption {

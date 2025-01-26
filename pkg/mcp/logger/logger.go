@@ -1,4 +1,4 @@
-package mcp
+package logger
 
 import (
 	"fmt"
@@ -83,3 +83,17 @@ func NewNoopLogger() *NoopLogger {
 
 func (l *NoopLogger) Logf(format string, args ...interface{}) {}
 func (l *NoopLogger) Close() error                            { return nil }
+
+// StderrLogger implements Logger using stderr
+type StderrLogger struct {
+	prefix string
+}
+
+func NewStderrLogger(prefix string) *StderrLogger {
+	return &StderrLogger{prefix: prefix}
+}
+
+func (l *StderrLogger) Logf(format string, args ...interface{}) {
+	fmt.Fprintf(os.Stderr, "[%s] ", l.prefix)
+	fmt.Fprintf(os.Stderr, format+"\n", args...)
+}

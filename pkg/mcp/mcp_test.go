@@ -9,7 +9,8 @@ import (
 
 	"github.com/dwrtz/mcp-go/internal/mock"
 	"github.com/dwrtz/mcp-go/internal/testutil"
-	"github.com/dwrtz/mcp-go/pkg/mcp"
+	"github.com/dwrtz/mcp-go/pkg/mcp/client"
+	"github.com/dwrtz/mcp-go/pkg/mcp/server"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
@@ -18,7 +19,7 @@ import (
 // a cleanup function. By default, the client is configured with roots and
 // sampling support, and the server is configured with resources, prompts,
 // and tools. Both can be customized if needed.
-func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context, func()) {
+func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Context, func()) {
 	t.Helper()
 
 	logger := testutil.NewTestLogger(t)
@@ -27,9 +28,9 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 
 	// Create a server with resources, prompts, and tools enabled
-	server := mcp.NewServer(
+	s := server.NewServer(
 		serverTransport,
-		mcp.WithResources(
+		server.WithResources(
 			[]types.Resource{
 				{
 					URI:      "file:///example.txt",
@@ -45,7 +46,7 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 				},
 			},
 		),
-		mcp.WithPrompts(
+		server.WithPrompts(
 			[]types.Prompt{
 				{
 					Name:        "example_prompt",
@@ -56,7 +57,7 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 				},
 			},
 		),
-		mcp.WithTools(
+		server.WithTools(
 			[]types.Tool{
 				{
 					Name:        "echo_tool",
@@ -81,7 +82,7 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	)
 
 	// Register a content handler on the server for reading resources
-	server.RegisterContentHandler("file://", func(ctx context.Context, uri string) ([]types.ResourceContent, error) {
+	s.RegisterContentHandler("file://", func(ctx context.Context, uri string) ([]types.ResourceContent, error) {
 		// For demonstration, if the file name is "example.txt", return some text
 		if uri == "file:///example.txt" {
 			return []types.ResourceContent{
@@ -99,7 +100,7 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	})
 
 	// Register a prompt getter on the server
-	server.RegisterPromptGetter("example_prompt", func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error) {
+	s.RegisterPromptGetter("example_prompt", func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error) {
 		arg1 := args["arg1"]
 		result := &types.GetPromptResult{
 			Description: "An example prompt result",
@@ -117,7 +118,7 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	})
 
 	// Register a tool handler on the server
-	server.RegisterToolHandler("echo_tool", func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error) {
+	s.RegisterToolHandler("echo_tool", func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error) {
 		val, ok := arguments["value"].(string)
 		if !ok {
 			return &types.CallToolResult{
@@ -142,15 +143,15 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	})
 
 	// Create a client with roots and sampling support
-	client := mcp.NewClient(
+	c := client.NewClient(
 		clientTransport,
-		mcp.WithRoots([]types.Root{
+		client.WithRoots([]types.Root{
 			{
 				URI:  "file:///initialRoot",
 				Name: "Initial Root",
 			},
 		}),
-		mcp.WithSampling(func(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
+		client.WithSampling(func(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
 			// Basic sampling handler mock
 			if len(req.Messages) == 0 {
 				return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
@@ -173,33 +174,33 @@ func setupClientServer(t *testing.T) (*mcp.Client, *mcp.Server, context.Context,
 	ctx := context.Background()
 
 	// Start server and client
-	if err := server.Start(ctx); err != nil {
+	if err := s.Start(ctx); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
-	if err := client.Start(ctx); err != nil {
+	if err := c.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
 	}
 
 	// Initialize the client with the server
-	if err := client.Initialize(ctx); err != nil {
+	if err := c.Initialize(ctx); err != nil {
 		t.Fatalf("Client initialization failed: %v", err)
 	}
 
 	// Return both plus a cleanup function
 	cleanup := func() {
-		client.Close()
-		server.Close()
+		c.Close()
+		s.Close()
 	}
-	return client, server, ctx, cleanup
+	return c, s, ctx, cleanup
 }
 
 func TestClientServerIntegration(t *testing.T) {
-	client, server, ctx, cleanup := setupClientServer(t)
+	c, s, ctx, cleanup := setupClientServer(t)
 	defer cleanup()
 
 	t.Run("TestRoots", func(t *testing.T) {
 		// Verify the server can call ListRoots on the client
-		rootsList, err := server.ListRoots(ctx)
+		rootsList, err := s.ListRoots(ctx)
 		if err != nil {
 			t.Fatalf("Server.ListRoots() error: %v", err)
 		}
@@ -221,14 +222,14 @@ func TestClientServerIntegration(t *testing.T) {
 				Name: "New Root 2",
 			},
 		}
-		if err := client.SetRoots(ctx, newRoots); err != nil {
+		if err := c.SetRoots(ctx, newRoots); err != nil {
 			t.Fatalf("Client.SetRoots() error: %v", err)
 		}
 	})
 
 	t.Run("TestResources", func(t *testing.T) {
 		// Client listing resources
-		res, err := client.ListResources(ctx)
+		res, err := c.ListResources(ctx)
 		if err != nil {
 			t.Fatalf("ListResources() error: %v", err)
 		}
@@ -237,7 +238,7 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 
 		// Client reading resource
-		contents, err := client.ReadResource(ctx, "file:///example.txt")
+		contents, err := c.ReadResource(ctx, "file:///example.txt")
 		if err != nil {
 			t.Fatalf("ReadResource() error: %v", err)
 		}
@@ -253,19 +254,19 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 
 		// Subscribing to resource
-		err = client.SubscribeResource(ctx, "file:///example.txt")
+		err = c.SubscribeResource(ctx, "file:///example.txt")
 		if err != nil {
 			t.Errorf("SubscribeResource() error: %v", err)
 		}
 
 		// Use a channel to detect the resource-updated notification
 		updatedCh := make(chan string)
-		client.OnResourceUpdated(func(uri string) {
+		c.OnResourceUpdated(func(uri string) {
 			updatedCh <- uri
 		})
 
 		// Trigger an update on the server
-		if err := server.NotifyResourceUpdated(ctx, "file:///example.txt"); err != nil {
+		if err := s.NotifyResourceUpdated(ctx, "file:///example.txt"); err != nil {
 			t.Errorf("NotifyResourceUpdated() error: %v", err)
 		}
 
@@ -279,7 +280,7 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 
 		// Unsubscribe
-		err = client.UnsubscribeResource(ctx, "file:///example.txt")
+		err = c.UnsubscribeResource(ctx, "file:///example.txt")
 		if err != nil {
 			t.Errorf("UnsubscribeResource() error: %v", err)
 		}
@@ -287,7 +288,7 @@ func TestClientServerIntegration(t *testing.T) {
 
 	t.Run("TestPrompts", func(t *testing.T) {
 		// Client listing prompts
-		promptsList, err := client.ListPrompts(ctx)
+		promptsList, err := c.ListPrompts(ctx)
 		if err != nil {
 			t.Fatalf("ListPrompts() error: %v", err)
 		}
@@ -296,7 +297,7 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 
 		// Client getting a prompt
-		promptRes, err := client.GetPrompt(ctx, "example_prompt", map[string]string{"arg1": "hello"})
+		promptRes, err := c.GetPrompt(ctx, "example_prompt", map[string]string{"arg1": "hello"})
 		if err != nil {
 			t.Fatalf("GetPrompt() error: %v", err)
 		}
@@ -315,12 +316,12 @@ func TestClientServerIntegration(t *testing.T) {
 
 		// Use channel to detect prompt list change
 		promptChangedCh := make(chan struct{})
-		client.OnPromptListChanged(func() {
+		c.OnPromptListChanged(func() {
 			close(promptChangedCh)
 		})
 
 		// Server updating prompts
-		err = server.SetPrompts(ctx, []types.Prompt{
+		err = s.SetPrompts(ctx, []types.Prompt{
 			{
 				Name:        "new_prompt",
 				Description: "A brand-new prompt",
@@ -340,7 +341,7 @@ func TestClientServerIntegration(t *testing.T) {
 
 	t.Run("TestTools", func(t *testing.T) {
 		// Client listing tools
-		toolsList, err := client.ListTools(ctx)
+		toolsList, err := c.ListTools(ctx)
 		if err != nil {
 			t.Fatalf("ListTools() error: %v", err)
 		}
@@ -349,7 +350,7 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 
 		// Client calling a tool
-		callRes, err := client.CallTool(ctx, "echo_tool", map[string]interface{}{"value": "Hello from client"})
+		callRes, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{"value": "Hello from client"})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
 		}
@@ -369,12 +370,12 @@ func TestClientServerIntegration(t *testing.T) {
 
 		// Use channel to detect tool list changed notification
 		toolChangedCh := make(chan struct{})
-		client.OnToolListChanged(func() {
+		c.OnToolListChanged(func() {
 			close(toolChangedCh)
 		})
 
 		// Server updating tools
-		err = server.SetTools(ctx, []types.Tool{
+		err = s.SetTools(ctx, []types.Tool{
 			{
 				Name:        "new_tool",
 				Description: "A new tool",
@@ -413,7 +414,7 @@ func TestClientServerIntegration(t *testing.T) {
 			},
 			MaxTokens: 50,
 		}
-		result, err := server.CreateMessage(ctx, req)
+		result, err := s.CreateMessage(ctx, req)
 		if err != nil {
 			t.Fatalf("Server.CreateMessage() error: %v", err)
 		}
@@ -440,7 +441,7 @@ func TestClientServerIntegration(t *testing.T) {
 
 // TestConcurrentUsage demonstrates multiple concurrent calls to the server & client
 func TestConcurrentUsage(t *testing.T) {
-	client, _, ctx, cleanup := setupClientServer(t)
+	c, _, ctx, cleanup := setupClientServer(t)
 	defer cleanup()
 
 	var wg sync.WaitGroup
@@ -451,7 +452,7 @@ func TestConcurrentUsage(t *testing.T) {
 	for i := 0; i < concurrentCalls; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := client.ReadResource(ctx, "file:///example.txt")
+			_, err := c.ReadResource(ctx, "file:///example.txt")
 			if err != nil {
 				t.Errorf("ReadResource error: %v", err)
 			}
@@ -463,7 +464,7 @@ func TestConcurrentUsage(t *testing.T) {
 	for i := 0; i < concurrentCalls; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			_, err := client.CallTool(ctx, "echo_tool", map[string]interface{}{
+			_, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{
 				"value": fmt.Sprintf("Hello %d", idx),
 			})
 			if err != nil {

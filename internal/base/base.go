@@ -90,6 +90,11 @@ func (b *Base) Logf(format string, args ...interface{}) {
 	b.transport.Logf(format, args...)
 }
 
+// SetLogger sets the logger for the base
+func (b *Base) SetLogger(logger transport.Logger) {
+	b.transport.SetLogger(logger)
+}
+
 // SendRequest sends a request and waits for the response
 func (b *Base) SendRequest(ctx context.Context, method string, params interface{}) (*types.Message, error) {
 	// Generate request ID

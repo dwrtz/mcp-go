@@ -32,6 +32,9 @@ type Transport interface {
 
 	// Logf logs a formatted message
 	Logf(format string, args ...interface{})
+
+	// SetLogger sets the logger for the transport
+	SetLogger(logger Logger)
 }
 
 type Logger interface {
@@ -51,41 +54,53 @@ type MessageRouter struct {
 	done chan struct{}
 	once sync.Once
 
-	logger Logger
+	logger *Logger
 }
 
 const defaultChannelSize = 10
 
-func NewMessageRouter(logger Logger) *MessageRouter {
+func NewMessageRouter() *MessageRouter {
 	return &MessageRouter{
 		Requests:      make(chan *types.Message, defaultChannelSize),
 		Responses:     make(chan *types.Message, defaultChannelSize),
 		Notifications: make(chan *types.Message, defaultChannelSize),
 		Errors:        make(chan error, defaultChannelSize),
 		done:          make(chan struct{}),
-		logger:        logger,
+		logger:        nil,
 	}
+}
+
+// Logf logs a formatted message
+func (r *MessageRouter) Logf(format string, args ...interface{}) {
+	if r.logger != nil {
+		(*r.logger).Logf(format, args...)
+	}
+}
+
+// SetLogger sets the logger for the transport
+func (r *MessageRouter) SetLogger(logger Logger) {
+	r.logger = &logger
 }
 
 // Handle implements MessageHandler.Handle
 func (r *MessageRouter) Handle(ctx context.Context, msg *types.Message) {
 	if msg == nil {
-		r.logger.Logf("Received nil message")
+		r.Logf("Received nil message")
 		return
 	}
 
 	if err := msg.Validate(); err != nil {
-		r.logger.Logf("Invalid message: %v", err)
+		r.Logf("Invalid message: %v", err)
 		return
 	}
 
 	// Route based on message type
 	select {
 	case <-r.done:
-		r.logger.Logf("Router closed, dropping message")
+		r.Logf("Router closed, dropping message")
 		return
 	case <-ctx.Done():
-		r.logger.Logf("Context cancelled while routing message")
+		r.Logf("Context cancelled while routing message")
 		return
 	default:
 		if msg.Method == "" {
@@ -93,21 +108,21 @@ func (r *MessageRouter) Handle(ctx context.Context, msg *types.Message) {
 			select {
 			case r.Responses <- msg:
 			default:
-				r.logger.Logf("Response channel full, dropping message")
+				r.Logf("Response channel full, dropping message")
 			}
 		} else if msg.ID == nil {
 			// This is a notification
 			select {
 			case r.Notifications <- msg:
 			default:
-				r.logger.Logf("Notification channel full, dropping message")
+				r.Logf("Notification channel full, dropping message")
 			}
 		} else {
 			// This is a request
 			select {
 			case r.Requests <- msg:
 			default:
-				r.logger.Logf("Request channel full, dropping message")
+				r.Logf("Request channel full, dropping message")
 			}
 		}
 	}
