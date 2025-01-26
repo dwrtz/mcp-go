@@ -1,3 +1,4 @@
 sink-config.yaml
+sink.tmpl
 mcp-go.md
 bin/*
