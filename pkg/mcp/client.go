@@ -126,7 +126,7 @@ func (c *Client) Close() error {
 	return c.base.Close()
 }
 
-// SupportsRoots returns whether the server supports roots functionality
+// SupportsRoots returns whether the client supports roots functionality
 func (c *Client) SupportsRoots() bool {
 	return c.roots != nil
 }
@@ -151,27 +151,139 @@ func (c *Client) SupportsSampling() bool {
 	return c.sampling != nil
 }
 
-// Roots returns the roots client
-func (c *Client) Roots() *roots.RootsClient {
-	return c.roots
+// Resource Methods
+
+// ListResources returns a list of all available resources from the server.
+// Returns an error if the server does not support resources.
+func (c *Client) ListResources(ctx context.Context) ([]types.Resource, error) {
+	if !c.SupportsResources() {
+		return nil, types.NewError(types.MethodNotFound, "resources not supported")
+	}
+	return c.resources.List(ctx)
 }
 
-// Resources returns the resources client
-func (c *Client) Resources() *resources.ResourcesClient {
-	return c.resources
+// ReadResource retrieves the contents of a specific resource identified by its URI.
+// Returns the resource contents, which can be either text or binary data.
+// Returns an error if the server does not support resources or if the resource cannot be read.
+func (c *Client) ReadResource(ctx context.Context, uri string) ([]types.ResourceContent, error) {
+	if !c.SupportsResources() {
+		return nil, types.NewError(types.MethodNotFound, "resources not supported")
+	}
+	return c.resources.Read(ctx, uri)
 }
 
-// Prompts returns the prompts client
-func (c *Client) Prompts() *prompts.PromptsClient {
-	return c.prompts
+// ListResourceTemplates returns a list of available resource templates from the server.
+// Templates can be used to construct valid resource URIs.
+// Returns an error if the server does not support resources.
+func (c *Client) ListResourceTemplates(ctx context.Context) ([]types.ResourceTemplate, error) {
+	if !c.SupportsResources() {
+		return nil, types.NewError(types.MethodNotFound, "resources not supported")
+	}
+	return c.resources.ListTemplates(ctx)
 }
 
-// Tools returns the tools client
-func (c *Client) Tools() *tools.ToolsClient {
-	return c.tools
+// SubscribeResource subscribes to updates for a specific resource identified by its URI.
+// The client will receive notifications through OnResourceUpdated when the resource changes.
+// Returns an error if the server does not support resources or subscriptions.
+func (c *Client) SubscribeResource(ctx context.Context, uri string) error {
+	if !c.SupportsResources() {
+		return types.NewError(types.MethodNotFound, "resources not supported")
+	}
+	return c.resources.Subscribe(ctx, uri)
 }
 
-// Sampling returns the sampling client
-func (c *Client) Sampling() *sampling.SamplingClient {
-	return c.sampling
+// UnsubscribeResource removes a subscription for a specific resource.
+// Returns an error if the server does not support resources or if the subscription cannot be removed.
+func (c *Client) UnsubscribeResource(ctx context.Context, uri string) error {
+	if !c.SupportsResources() {
+		return types.NewError(types.MethodNotFound, "resources not supported")
+	}
+	return c.resources.Unsubscribe(ctx, uri)
+}
+
+// OnResourceUpdated registers a callback that will be invoked when a subscribed resource changes.
+// The callback receives the URI of the updated resource.
+// No-op if the server does not support resources.
+func (c *Client) OnResourceUpdated(callback func(uri string)) {
+	if c.SupportsResources() {
+		c.resources.OnResourceUpdated(callback)
+	}
+}
+
+// OnResourceListChanged registers a callback that will be invoked when the list of available
+// resources changes on the server. No-op if the server does not support resources.
+func (c *Client) OnResourceListChanged(callback func()) {
+	if c.SupportsResources() {
+		c.resources.OnResourceListChanged(callback)
+	}
+}
+
+// Prompt Methods
+
+// ListPrompts returns a list of all available prompts from the server.
+// Returns an error if the server does not support prompts.
+func (c *Client) ListPrompts(ctx context.Context) ([]types.Prompt, error) {
+	if !c.SupportsPrompts() {
+		return nil, types.NewError(types.MethodNotFound, "prompts not supported")
+	}
+	return c.prompts.List(ctx)
+}
+
+// GetPrompt retrieves a specific prompt by name, with optional arguments for templating.
+// Returns the prompt content and any associated messages.
+// Returns an error if the server does not support prompts or if the prompt cannot be found.
+func (c *Client) GetPrompt(ctx context.Context, name string, arguments map[string]string) (*types.GetPromptResult, error) {
+	if !c.SupportsPrompts() {
+		return nil, types.NewError(types.MethodNotFound, "prompts not supported")
+	}
+	return c.prompts.Get(ctx, name, arguments)
+}
+
+// OnPromptListChanged registers a callback that will be invoked when the list of available
+// prompts changes on the server. No-op if the server does not support prompts.
+func (c *Client) OnPromptListChanged(callback func()) {
+	if c.SupportsPrompts() {
+		c.prompts.OnPromptListChanged(callback)
+	}
+}
+
+// Tool Methods
+
+// ListTools returns a list of all available tools from the server.
+// Returns an error if the server does not support tools.
+func (c *Client) ListTools(ctx context.Context) ([]types.Tool, error) {
+	if !c.SupportsTools() {
+		return nil, types.NewError(types.MethodNotFound, "tools not supported")
+	}
+	return c.tools.List(ctx)
+}
+
+// CallTool invokes a specific tool by name with the provided arguments.
+// Returns the tool's execution result or an error if the tool cannot be called.
+// Returns an error if the server does not support tools.
+func (c *Client) CallTool(ctx context.Context, name string, arguments map[string]interface{}) (*types.CallToolResult, error) {
+	if !c.SupportsTools() {
+		return nil, types.NewError(types.MethodNotFound, "tools not supported")
+	}
+	return c.tools.Call(ctx, name, arguments)
+}
+
+// OnToolListChanged registers a callback that will be invoked when the list of available
+// tools changes on the server. No-op if the server does not support tools.
+func (c *Client) OnToolListChanged(callback func()) {
+	if c.SupportsTools() {
+		c.tools.OnToolListChanged(callback)
+	}
+}
+
+// Root Methods
+
+// SetRoots updates the list of root directories that the client exposes to the server.
+// Each root must be a valid file:// URI.
+// Returns an error if the client does not support roots or if any root is invalid.
+func (c *Client) SetRoots(ctx context.Context, roots []types.Root) error {
+	if !c.SupportsRoots() {
+		return types.NewError(types.MethodNotFound, "roots not supported")
+	}
+	return c.roots.SetRoots(ctx, roots)
 }
