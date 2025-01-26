@@ -38,33 +38,33 @@ type Server struct {
 type ServerOption func(*Server)
 
 // WithResources enables resources functionality on the server
-func WithResources() ServerOption {
+func WithResources(initialResources []types.Resource, initialTemplates []types.ResourceTemplate) ServerOption {
 	return func(s *Server) {
 		s.capabilities.Resources = &types.ResourcesServerCapabilities{
 			Subscribe:   true,
 			ListChanged: true,
 		}
-		s.resources = resources.NewResourcesServer(s.base)
+		s.resources = resources.NewResourcesServer(s.base, initialResources, initialTemplates)
 	}
 }
 
 // WithPrompts enables prompts functionality on the server
-func WithPrompts() ServerOption {
+func WithPrompts(initialPrompts []types.Prompt) ServerOption {
 	return func(s *Server) {
 		s.capabilities.Prompts = &types.PromptsServerCapabilities{
 			ListChanged: true,
 		}
-		s.prompts = prompts.NewPromptsServer(s.base)
+		s.prompts = prompts.NewPromptsServer(s.base, initialPrompts)
 	}
 }
 
 // WithTools enables tools functionality on the server
-func WithTools() ServerOption {
+func WithTools(initialTools []types.Tool) ServerOption {
 	return func(s *Server) {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,
 		}
-		s.tools = tools.NewToolsServer(s.base)
+		s.tools = tools.NewToolsServer(s.base, initialTools)
 	}
 }
 

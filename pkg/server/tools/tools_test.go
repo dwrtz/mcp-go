@@ -18,15 +18,32 @@ import (
 func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
-
-	// Create base server and client
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	// Create tools server
-	toolsServer := NewToolsServer(baseServer)
+	initialTools := []types.Tool{
+		{
+			Name:        "test_tool",
+			Description: "A test tool",
+			InputSchema: struct {
+				Type       string                 `json:"type"`
+				Properties map[string]interface{} `json:"properties,omitempty"`
+				Required   []string               `json:"required,omitempty"`
+			}{
+				Type: "object",
+				Properties: map[string]interface{}{
+					"value": map[string]interface{}{
+						"type":        "string",
+						"description": "A test value",
+					},
+				},
+				Required: []string{"value"},
+			},
+		},
+	}
 
-	// Start both
+	toolsServer := NewToolsServer(baseServer, initialTools)
+
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
@@ -35,7 +52,6 @@ func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func())
 		t.Fatalf("Failed to start client: %v", err)
 	}
 
-	// Provide cleanup function
 	cleanup := func() {
 		baseClient.Close()
 		baseServer.Close()

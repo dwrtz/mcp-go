@@ -13,13 +13,29 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *base.Base, *ResourcesServer, func()) {
+func setupTest(t *testing.T) (context.Context, *ResourcesServer, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	resourcesServer := NewResourcesServer(baseServer)
+	initialResources := []types.Resource{
+		{
+			URI:      "file:///test.txt",
+			Name:     "Test File",
+			MimeType: "text/plain",
+		},
+	}
+
+	initialTemplates := []types.ResourceTemplate{
+		{
+			URITemplate: "file:///test/{name}.txt",
+			Name:        "Text File Template",
+			MimeType:    "text/plain",
+		},
+	}
+
+	resourcesServer := NewResourcesServer(baseServer, initialResources, initialTemplates)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -34,7 +50,7 @@ func setupTest(t *testing.T) (context.Context, *base.Base, *ResourcesServer, fun
 		baseServer.Close()
 	}
 
-	return ctx, baseClient, resourcesServer, cleanup
+	return ctx, resourcesServer, baseClient, cleanup
 }
 
 func TestResourcesServer_ListResources(t *testing.T) {
@@ -68,7 +84,7 @@ func TestResourcesServer_ListResources(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, client, server, cleanup := setupTest(t)
+			ctx, server, client, cleanup := setupTest(t)
 			defer cleanup()
 
 			// Set resources on server
@@ -162,7 +178,7 @@ func TestResourcesServer_ReadResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, client, server, cleanup := setupTest(t)
+			ctx, server, client, cleanup := setupTest(t)
 			defer cleanup()
 
 			// Register content handler
@@ -244,7 +260,7 @@ func TestResourcesServer_ReadResource(t *testing.T) {
 }
 
 func TestResourcesServer_ResourceNotifications(t *testing.T) {
-	ctx, client, server, cleanup := setupTest(t)
+	ctx, server, client, cleanup := setupTest(t)
 	defer cleanup()
 
 	// Channel to track notification receipt
@@ -339,7 +355,7 @@ func TestResourcesServer_ListTemplates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, client, server, cleanup := setupTest(t)
+			ctx, server, client, cleanup := setupTest(t)
 			defer cleanup()
 
 			// Set templates on server

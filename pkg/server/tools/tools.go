@@ -24,16 +24,14 @@ type ToolsServer struct {
 type ToolHandler func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error)
 
 // NewToolsServer creates a new ToolsServer
-func NewToolsServer(base *base.Base) *ToolsServer {
+func NewToolsServer(base *base.Base, initialTools []types.Tool) *ToolsServer {
 	s := &ToolsServer{
 		base:         base,
+		tools:        initialTools,
 		toolHandlers: make(map[string]ToolHandler),
 	}
-
-	// Register request handlers
 	base.RegisterRequestHandler(methods.ListTools, s.handleListTools)
 	base.RegisterRequestHandler(methods.CallTool, s.handleCallTool)
-
 	return s
 }
 

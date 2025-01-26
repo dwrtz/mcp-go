@@ -24,16 +24,14 @@ type PromptsServer struct {
 type PromptGetter func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error)
 
 // NewPromptsServer creates a new PromptsServer
-func NewPromptsServer(base *base.Base) *PromptsServer {
+func NewPromptsServer(base *base.Base, initialPrompts []types.Prompt) *PromptsServer {
 	s := &PromptsServer{
 		base:          base,
+		prompts:       initialPrompts,
 		promptGetters: make(map[string]PromptGetter),
 	}
-
-	// Register request handlers
 	base.RegisterRequestHandler(methods.ListPrompts, s.handleListPrompts)
 	base.RegisterRequestHandler(methods.GetPrompt, s.handleGetPrompt)
-
 	return s
 }
 

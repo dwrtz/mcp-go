@@ -26,9 +26,11 @@ type ResourcesServer struct {
 type ContentHandler func(ctx context.Context, uri string) ([]types.ResourceContent, error)
 
 // NewResourcesServer creates a new ResourcesServer
-func NewResourcesServer(base *base.Base) *ResourcesServer {
+func NewResourcesServer(base *base.Base, initialResources []types.Resource, initialTemplates []types.ResourceTemplate) *ResourcesServer {
 	s := &ResourcesServer{
 		base:            base,
+		resources:       initialResources,
+		templates:       initialTemplates,
 		subscriptions:   make(map[string][]string),
 		contentHandlers: make(map[string]ContentHandler),
 	}

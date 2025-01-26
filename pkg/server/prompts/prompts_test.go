@@ -13,13 +13,26 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *base.Base, *PromptsServer, func()) {
+func setupTest(t *testing.T) (context.Context, *PromptsServer, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
-
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
-	promptsServer := NewPromptsServer(baseServer)
+
+	initialPrompts := []types.Prompt{
+		{
+			Name:        "test_prompt",
+			Description: "A test prompt",
+			Arguments: []types.PromptArgument{
+				{
+					Name:        "arg1",
+					Description: "First argument",
+					Required:    true,
+				},
+			},
+		},
+	}
+	promptsServer := NewPromptsServer(baseServer, initialPrompts)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -34,7 +47,7 @@ func setupTest(t *testing.T) (context.Context, *base.Base, *PromptsServer, func(
 		baseServer.Close()
 	}
 
-	return ctx, baseClient, promptsServer, cleanup
+	return ctx, promptsServer, baseClient, cleanup
 }
 
 func TestPromptsServer_ListPrompts(t *testing.T) {
@@ -69,7 +82,7 @@ func TestPromptsServer_ListPrompts(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, client, server, cleanup := setupTest(t)
+			ctx, server, client, cleanup := setupTest(t)
 			defer cleanup()
 
 			// Set prompts on server
@@ -185,7 +198,7 @@ func TestPromptsServer_GetPrompt(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx, client, server, cleanup := setupTest(t)
+			ctx, server, client, cleanup := setupTest(t)
 			defer cleanup()
 
 			if tc.getter != nil {
@@ -245,7 +258,7 @@ func TestPromptsServer_GetPrompt(t *testing.T) {
 }
 
 func TestPromptsServer_PromptsChanged(t *testing.T) {
-	ctx, client, server, cleanup := setupTest(t)
+	ctx, server, client, cleanup := setupTest(t)
 	defer cleanup()
 
 	// Channel to track notification reception
