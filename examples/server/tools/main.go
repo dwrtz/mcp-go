@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dwrtz/mcp-go/pkg/mcp/logger"
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/mcp/server"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )

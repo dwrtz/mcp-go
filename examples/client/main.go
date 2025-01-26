@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/mcp/client"
-	"github.com/dwrtz/mcp-go/pkg/mcp/logger"
 )
 
 func main() {
