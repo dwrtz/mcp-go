@@ -6,13 +6,13 @@ import (
 	"fmt"
 
 	"github.com/dwrtz/mcp-go/internal/base"
+	"github.com/dwrtz/mcp-go/internal/server/prompts"
+	"github.com/dwrtz/mcp-go/internal/server/resources"
+	"github.com/dwrtz/mcp-go/internal/server/roots"
+	"github.com/dwrtz/mcp-go/internal/server/sampling"
+	"github.com/dwrtz/mcp-go/internal/server/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
 	"github.com/dwrtz/mcp-go/pkg/methods"
-	"github.com/dwrtz/mcp-go/pkg/server/prompts"
-	"github.com/dwrtz/mcp-go/pkg/server/resources"
-	"github.com/dwrtz/mcp-go/pkg/server/roots"
-	"github.com/dwrtz/mcp-go/pkg/server/sampling"
-	"github.com/dwrtz/mcp-go/pkg/server/tools"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
