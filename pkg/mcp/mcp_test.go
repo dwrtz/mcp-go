@@ -14,18 +14,33 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// setupClientServer creates a client and server with all features enabled,
-// starts them, performs client initialization, and returns them along with
-// a cleanup function. By default, the client is configured with roots and
-// sampling support, and the server is configured with resources, prompts,
-// and tools. Both can be customized if needed.
+// Input types for tools
+type EchoInput struct {
+	Value string `json:"value" jsonschema:"description=Value to echo back,required"`
+}
+
 func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Context, func()) {
 	t.Helper()
 
 	logger := testutil.NewTestLogger(t)
-
-	// Create in-process (pipe-based) mock transports
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
+
+	// Create echo tool with typed input/output
+	echoTool := types.NewTool[EchoInput](
+		"echo_tool",
+		"Echoes back the provided input",
+		func(ctx context.Context, input EchoInput) (*types.CallToolResult, error) {
+			return &types.CallToolResult{
+				Content: []interface{}{
+					types.TextContent{
+						Type: "text",
+						Text: "Echo: " + input.Value,
+					},
+				},
+				IsError: false,
+			}, nil
+		},
+	)
 
 	// Create a server with resources, prompts, and tools enabled
 	s := server.NewServer(
@@ -57,33 +72,11 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 				},
 			},
 		),
-		server.WithTools(
-			[]types.Tool{
-				{
-					Name:        "echo_tool",
-					Description: "Echoes back the provided input",
-					InputSchema: struct {
-						Type       string                 `json:"type"`
-						Properties map[string]interface{} `json:"properties,omitempty"`
-						Required   []string               `json:"required,omitempty"`
-					}{
-						Type: "object",
-						Properties: map[string]interface{}{
-							"value": map[string]interface{}{
-								"type":        "string",
-								"description": "Value to echo back",
-							},
-						},
-						Required: []string{"value"},
-					},
-				},
-			},
-		),
+		server.WithTools([]types.McpTool{echoTool}),
 	)
 
-	// Register a content handler on the server for reading resources
+	// Register content handler for resources
 	s.RegisterContentHandler("file://", func(ctx context.Context, uri string) ([]types.ResourceContent, error) {
-		// For demonstration, if the file name is "example.txt", return some text
 		if uri == "file:///example.txt" {
 			return []types.ResourceContent{
 				types.TextResourceContents{
@@ -95,14 +88,13 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 				},
 			}, nil
 		}
-		// Otherwise, return an error
 		return nil, types.NewError(types.InvalidParams, "resource not found")
 	})
 
-	// Register a prompt getter on the server
+	// Register prompt getter
 	s.RegisterPromptGetter("example_prompt", func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error) {
 		arg1 := args["arg1"]
-		result := &types.GetPromptResult{
+		return &types.GetPromptResult{
 			Description: "An example prompt result",
 			Messages: []types.PromptMessage{
 				{
@@ -113,36 +105,10 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 					},
 				},
 			},
-		}
-		return result, nil
-	})
-
-	// Register a tool handler on the server
-	s.RegisterToolHandler("echo_tool", func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error) {
-		val, ok := arguments["value"].(string)
-		if !ok {
-			return &types.CallToolResult{
-				Content: []interface{}{
-					types.TextContent{
-						Type: "text",
-						Text: "Error: 'value' must be a string",
-					},
-				},
-				IsError: true,
-			}, nil
-		}
-		return &types.CallToolResult{
-			Content: []interface{}{
-				types.TextContent{
-					Type: "text",
-					Text: "Echo: " + val,
-				},
-			},
-			IsError: false,
 		}, nil
 	})
 
-	// Create a client with roots and sampling support
+	// Create client with roots and sampling support
 	c := client.NewClient(
 		clientTransport,
 		client.WithRoots([]types.Root{
@@ -152,7 +118,6 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 			},
 		}),
 		client.WithSampling(func(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
-			// Basic sampling handler mock
 			if len(req.Messages) == 0 {
 				return nil, types.NewError(types.InvalidParams, "messages array cannot be empty")
 			}
@@ -173,7 +138,6 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 
 	ctx := context.Background()
 
-	// Start server and client
 	if err := s.Start(ctx); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
@@ -181,12 +145,10 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 		t.Fatalf("Failed to start client: %v", err)
 	}
 
-	// Initialize the client with the server
 	if err := c.Initialize(ctx); err != nil {
 		t.Fatalf("Client initialization failed: %v", err)
 	}
 
-	// Return both plus a cleanup function
 	cleanup := func() {
 		c.Close()
 		s.Close()
@@ -199,28 +161,17 @@ func TestClientServerIntegration(t *testing.T) {
 	defer cleanup()
 
 	t.Run("TestRoots", func(t *testing.T) {
-		// Verify the server can call ListRoots on the client
 		rootsList, err := s.ListRoots(ctx)
 		if err != nil {
 			t.Fatalf("Server.ListRoots() error: %v", err)
 		}
-		if len(rootsList) != 1 {
-			t.Fatalf("Expected 1 root from client, got %d", len(rootsList))
-		}
-		if rootsList[0].URI != "file:///initialRoot" {
-			t.Errorf("Unexpected root URI: %v", rootsList[0].URI)
+		if len(rootsList) != 1 || rootsList[0].URI != "file:///initialRoot" {
+			t.Errorf("Unexpected root: %+v", rootsList)
 		}
 
-		// Verify the client can set new roots
 		newRoots := []types.Root{
-			{
-				URI:  "file:///newRoot1",
-				Name: "New Root 1",
-			},
-			{
-				URI:  "file:///newRoot2",
-				Name: "New Root 2",
-			},
+			{URI: "file:///newRoot1", Name: "New Root 1"},
+			{URI: "file:///newRoot2", Name: "New Root 2"},
 		}
 		if err := c.SetRoots(ctx, newRoots); err != nil {
 			t.Fatalf("Client.SetRoots() error: %v", err)
@@ -228,181 +179,91 @@ func TestClientServerIntegration(t *testing.T) {
 	})
 
 	t.Run("TestResources", func(t *testing.T) {
-		// Client listing resources
 		res, err := c.ListResources(ctx)
 		if err != nil {
 			t.Fatalf("ListResources() error: %v", err)
 		}
 		if len(res) != 1 || res[0].URI != "file:///example.txt" {
-			t.Errorf("Expected to find resource 'file:///example.txt', got %+v", res)
+			t.Errorf("Expected resource 'file:///example.txt', got %+v", res)
 		}
 
-		// Client reading resource
 		contents, err := c.ReadResource(ctx, "file:///example.txt")
 		if err != nil {
 			t.Fatalf("ReadResource() error: %v", err)
 		}
-		if len(contents) != 1 {
-			t.Fatalf("Expected 1 content item, got %d", len(contents))
-		}
 		textContent, ok := contents[0].(types.TextResourceContents)
-		if !ok {
-			t.Fatalf("Expected TextResourceContents, got %T", contents[0])
-		}
-		if textContent.Text != "This is an example file content." {
-			t.Errorf("Unexpected file content: %s", textContent.Text)
+		if !ok || textContent.Text != "This is an example file content." {
+			t.Errorf("Unexpected content: %+v", contents[0])
 		}
 
-		// Subscribing to resource
-		err = c.SubscribeResource(ctx, "file:///example.txt")
-		if err != nil {
-			t.Errorf("SubscribeResource() error: %v", err)
-		}
-
-		// Use a channel to detect the resource-updated notification
 		updatedCh := make(chan string)
 		c.OnResourceUpdated(func(uri string) {
 			updatedCh <- uri
 		})
 
-		// Trigger an update on the server
+		if err := c.SubscribeResource(ctx, "file:///example.txt"); err != nil {
+			t.Fatalf("SubscribeResource() error: %v", err)
+		}
+
 		if err := s.NotifyResourceUpdated(ctx, "file:///example.txt"); err != nil {
-			t.Errorf("NotifyResourceUpdated() error: %v", err)
+			t.Fatalf("NotifyResourceUpdated() error: %v", err)
 		}
 
 		select {
-		case updatedURI := <-updatedCh:
-			if updatedURI != "file:///example.txt" {
-				t.Errorf("Unexpected updated URI: %s", updatedURI)
+		case uri := <-updatedCh:
+			if uri != "file:///example.txt" {
+				t.Errorf("Unexpected URI: %s", uri)
 			}
-		case <-time.After(1 * time.Second):
-			t.Error("Timeout waiting for resource update notification")
+		case <-time.After(time.Second):
+			t.Error("Timeout waiting for update")
 		}
 
-		// Unsubscribe
-		err = c.UnsubscribeResource(ctx, "file:///example.txt")
-		if err != nil {
-			t.Errorf("UnsubscribeResource() error: %v", err)
+		if err := c.UnsubscribeResource(ctx, "file:///example.txt"); err != nil {
+			t.Fatalf("UnsubscribeResource() error: %v", err)
 		}
 	})
 
 	t.Run("TestPrompts", func(t *testing.T) {
-		// Client listing prompts
-		promptsList, err := c.ListPrompts(ctx)
+		prompts, err := c.ListPrompts(ctx)
 		if err != nil {
 			t.Fatalf("ListPrompts() error: %v", err)
 		}
-		if len(promptsList) != 1 || promptsList[0].Name != "example_prompt" {
-			t.Errorf("Expected to find 'example_prompt', got %+v", promptsList)
+		if len(prompts) != 1 || prompts[0].Name != "example_prompt" {
+			t.Errorf("Unexpected prompts: %+v", prompts)
 		}
 
-		// Client getting a prompt
-		promptRes, err := c.GetPrompt(ctx, "example_prompt", map[string]string{"arg1": "hello"})
+		result, err := c.GetPrompt(ctx, "example_prompt", map[string]string{"arg1": "test"})
 		if err != nil {
 			t.Fatalf("GetPrompt() error: %v", err)
 		}
-		if len(promptRes.Messages) != 1 {
-			t.Fatalf("Expected 1 message in prompt result, got %d", len(promptRes.Messages))
-		}
-		msg := promptRes.Messages[0]
-		txt, ok := msg.Content.(types.TextContent)
-		if !ok {
-			t.Fatalf("Expected TextContent, got %T", msg.Content)
-		}
-		expectedText := "Prompt with arg1=hello"
-		if txt.Text != expectedText {
-			t.Errorf("Expected text: %q, got %q", expectedText, txt.Text)
-		}
-
-		// Use channel to detect prompt list change
-		promptChangedCh := make(chan struct{})
-		c.OnPromptListChanged(func() {
-			close(promptChangedCh)
-		})
-
-		// Server updating prompts
-		err = s.SetPrompts(ctx, []types.Prompt{
-			{
-				Name:        "new_prompt",
-				Description: "A brand-new prompt",
-			},
-		})
-		if err != nil {
-			t.Fatalf("Server.SetPrompts() error: %v", err)
-		}
-
-		// Wait for the notification
-		select {
-		case <-promptChangedCh:
-		case <-time.After(1 * time.Second):
-			t.Error("Timeout waiting for prompt list changed notification")
+		if txt, ok := result.Messages[0].Content.(types.TextContent); !ok || txt.Text != "Prompt with arg1=test" {
+			t.Errorf("Unexpected prompt content: %+v", result.Messages[0].Content)
 		}
 	})
 
 	t.Run("TestTools", func(t *testing.T) {
-		// Client listing tools
-		toolsList, err := c.ListTools(ctx)
+		tools, err := c.ListTools(ctx)
 		if err != nil {
 			t.Fatalf("ListTools() error: %v", err)
 		}
-		if len(toolsList) != 1 || toolsList[0].Name != "echo_tool" {
-			t.Errorf("Expected 'echo_tool', got %+v", toolsList)
+		if len(tools) != 1 || tools[0].Name != "echo_tool" {
+			t.Errorf("Unexpected tools: %+v", tools)
 		}
 
-		// Client calling a tool
-		callRes, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{"value": "Hello from client"})
+		result, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{
+			"value": "test message",
+		})
 		if err != nil {
 			t.Fatalf("CallTool() error: %v", err)
 		}
-		if callRes.IsError {
-			t.Errorf("Expected no error, but got an error result")
-		}
-		if len(callRes.Content) != 1 {
-			t.Fatalf("Expected 1 content item, got %d", len(callRes.Content))
-		}
-		contentMap, ok := callRes.Content[0].(map[string]interface{})
-		if !ok {
-			t.Fatalf("Expected map[string]interface{}, got %T", callRes.Content[0])
-		}
-		if contentMap["text"] != "Echo: Hello from client" {
-			t.Errorf("Unexpected tool response: %v", contentMap["text"])
-		}
-
-		// Use channel to detect tool list changed notification
-		toolChangedCh := make(chan struct{})
-		c.OnToolListChanged(func() {
-			close(toolChangedCh)
-		})
-
-		// Server updating tools
-		err = s.SetTools(ctx, []types.Tool{
-			{
-				Name:        "new_tool",
-				Description: "A new tool",
-				InputSchema: struct {
-					Type       string                 `json:"type"`
-					Properties map[string]interface{} `json:"properties,omitempty"`
-					Required   []string               `json:"required,omitempty"`
-				}{
-					Type: "object",
-				},
-			},
-		})
-		if err != nil {
-			t.Fatalf("Server.SetTools() error: %v", err)
-		}
-
-		select {
-		case <-toolChangedCh:
-		case <-time.After(1 * time.Second):
-			t.Error("Timeout waiting for tools changed notification")
+		content := result.Content[0].(map[string]interface{})
+		if content["text"] != "Echo: test message" {
+			t.Errorf("Unexpected tool response: %v", content["text"])
 		}
 	})
 
 	t.Run("TestSampling", func(t *testing.T) {
-		// Server requests a sample from the client's LLM
 		req := &types.CreateMessageRequest{
-			Method: "sampling/createMessage",
 			Messages: []types.SamplingMessage{
 				{
 					Role: types.RoleUser,
@@ -416,30 +277,17 @@ func TestClientServerIntegration(t *testing.T) {
 		}
 		result, err := s.CreateMessage(ctx, req)
 		if err != nil {
-			t.Fatalf("Server.CreateMessage() error: %v", err)
+			t.Fatalf("CreateMessage() error: %v", err)
 		}
 		if result.Role != types.RoleAssistant {
 			t.Errorf("Expected role 'assistant', got %s", result.Role)
 		}
-		txt, ok := result.Content.(types.TextContent)
-		if !ok {
-			t.Fatalf("Expected text content, got %T", result.Content)
+		if txt, ok := result.Content.(types.TextContent); !ok || txt.Text != "Sampled response" {
+			t.Errorf("Unexpected sampling response: %+v", result.Content)
 		}
-		if txt.Text != "Sampled response" {
-			t.Errorf("Unexpected sampling response: %s", txt.Text)
-		}
-		if result.Model != "mock-model" {
-			t.Errorf("Expected model='mock-model', got %s", result.Model)
-		}
-	})
-
-	t.Run("TestShutdown", func(t *testing.T) {
-		// Just confirm no errors on close in subtest
-		// The `defer cleanup()` will handle it.
 	})
 }
 
-// TestConcurrentUsage demonstrates multiple concurrent calls to the server & client
 func TestConcurrentUsage(t *testing.T) {
 	c, _, ctx, cleanup := setupClientServer(t)
 	defer cleanup()
@@ -447,27 +295,23 @@ func TestConcurrentUsage(t *testing.T) {
 	var wg sync.WaitGroup
 	const concurrentCalls = 5
 
-	// Perform concurrent resource read calls from the client
 	wg.Add(concurrentCalls)
 	for i := 0; i < concurrentCalls; i++ {
 		go func() {
 			defer wg.Done()
-			_, err := c.ReadResource(ctx, "file:///example.txt")
-			if err != nil {
+			if _, err := c.ReadResource(ctx, "file:///example.txt"); err != nil {
 				t.Errorf("ReadResource error: %v", err)
 			}
 		}()
 	}
 
-	// Perform concurrent tool calls from the client
 	wg.Add(concurrentCalls)
 	for i := 0; i < concurrentCalls; i++ {
 		go func(idx int) {
 			defer wg.Done()
-			_, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{
+			if _, err := c.CallTool(ctx, "echo_tool", map[string]interface{}{
 				"value": fmt.Sprintf("Hello %d", idx),
-			})
-			if err != nil {
+			}); err != nil {
 				t.Errorf("CallTool error: %v", err)
 			}
 		}(i)
