@@ -41,7 +41,10 @@ func (s *PromptsServer) SetPrompts(ctx context.Context, prompts []types.Prompt) 
 	s.prompts = prompts
 	s.mu.Unlock()
 
-	return s.base.SendNotification(ctx, methods.PromptsChanged, nil)
+	if s.base.Started {
+		return s.base.SendNotification(ctx, methods.PromptsChanged, nil)
+	}
+	return nil
 }
 
 // RegisterPromptGetter registers a handler for getting prompt contents

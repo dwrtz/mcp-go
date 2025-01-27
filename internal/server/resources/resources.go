@@ -51,7 +51,10 @@ func (s *ResourcesServer) SetResources(ctx context.Context, resources []types.Re
 	s.resources = resources
 	s.mu.Unlock()
 
-	return s.base.SendNotification(ctx, methods.ResourceListChanged, nil)
+	if s.base.Started {
+		return s.base.SendNotification(ctx, methods.ResourceListChanged, nil)
+	}
+	return nil
 }
 
 // SetTemplates updates the list of resource templates

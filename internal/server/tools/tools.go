@@ -41,7 +41,10 @@ func (s *ToolsServer) SetTools(ctx context.Context, tools []types.Tool) error {
 	s.tools = tools
 	s.mu.Unlock()
 
-	return s.base.SendNotification(ctx, methods.ToolsChanged, nil)
+	if s.base.Started {
+		return s.base.SendNotification(ctx, methods.ToolsChanged, nil)
+	}
+	return nil
 }
 
 // RegisterToolHandler registers a handler for a specific tool

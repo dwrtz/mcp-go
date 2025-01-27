@@ -40,7 +40,10 @@ func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
 	c.roots = roots
 	c.mu.Unlock()
 
-	return c.base.SendNotification(ctx, methods.RootsChanged, nil)
+	if c.base.Started {
+		return c.base.SendNotification(ctx, methods.RootsChanged, nil)
+	}
+	return nil
 }
 
 // handleListRoots handles the roots/list request

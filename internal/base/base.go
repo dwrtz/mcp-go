@@ -31,6 +31,7 @@ type Base struct {
 	// Lifecycle management
 	startOnce sync.Once
 	closeOnce sync.Once
+	Started   bool
 }
 
 // NewBase creates a new base instance
@@ -39,6 +40,7 @@ func NewBase(t transport.Transport) *Base {
 		transport:            t,
 		requestHandlers:      make(map[string]RequestHandler),
 		notificationHandlers: make(map[string]NotificationHandler),
+		Started:              false,
 	}
 }
 
@@ -67,7 +69,9 @@ func (b *Base) Start(ctx context.Context) error {
 		}
 
 		// Start message handling
+		b.Started = true
 		go b.handleMessages(ctx)
+
 	})
 	return startErr
 }
@@ -77,6 +81,7 @@ func (b *Base) Close() error {
 	var closeErr error
 	b.closeOnce.Do(func() {
 		closeErr = b.transport.Close()
+		b.Started = false
 	})
 	return closeErr
 }
