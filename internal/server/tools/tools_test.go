@@ -13,35 +13,35 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// setupTest creates a server, a client, and a ToolsServer instance, then starts them.
-// It returns a cleanup function that should be deferred to properly close everything.
+// Test input type for echo tool
+type EchoInput struct {
+	Value string `json:"value" jsonschema:"description=Value to echo back,required"`
+}
+
 func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	initialTools := []types.Tool{
-		{
-			Name:        "test_tool",
-			Description: "A test tool",
-			InputSchema: struct {
-				Type       string                 `json:"type"`
-				Properties map[string]interface{} `json:"properties,omitempty"`
-				Required   []string               `json:"required,omitempty"`
-			}{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"value": map[string]interface{}{
-						"type":        "string",
-						"description": "A test value",
+	// Create initial tools using the new TypedTool constructor
+	echoTool := types.NewTool[EchoInput](
+		"test_tool",
+		"A test tool",
+		func(ctx context.Context, input EchoInput) (*types.CallToolResult, error) {
+			return &types.CallToolResult{
+				Content: []interface{}{
+					types.TextContent{
+						Type: "text",
+						Text: "Echo: " + input.Value,
 					},
 				},
-				Required: []string{"value"},
-			},
+				IsError: false,
+			}, nil
 		},
-	}
+	)
 
+	initialTools := []types.McpTool{echoTool}
 	toolsServer := NewToolsServer(baseServer, initialTools)
 
 	ctx := context.Background()
@@ -67,55 +67,37 @@ func TestToolsServer_SetTools(t *testing.T) {
 	// Channel to track notification
 	notificationReceived := make(chan struct{})
 
-	// Register notification handler on the client side
+	// Register notification handler
 	client.RegisterNotificationHandler(methods.ToolsChanged, func(ctx context.Context, params json.RawMessage) {
 		close(notificationReceived)
 	})
 
-	// Prepare some tools
-	tools := []types.Tool{
-		{
-			Name:        "get_weather",
-			Description: "Fetch current weather information",
-			InputSchema: struct {
-				Type       string                 `json:"type"`
-				Properties map[string]interface{} `json:"properties,omitempty"`
-				Required   []string               `json:"required,omitempty"`
-			}{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"location": map[string]interface{}{
-						"type":        "string",
-						"description": "City name or zip code",
+	// Create new tools
+	weatherTool := types.NewTool[struct {
+		Location string `json:"location" jsonschema:"description=City name or zip code,required"`
+	}](
+		"get_weather",
+		"Fetch current weather information",
+		func(ctx context.Context, input struct {
+			Location string `json:"location" jsonschema:"description=City name or zip code,required"`
+		}) (*types.CallToolResult, error) {
+			return &types.CallToolResult{
+				Content: []interface{}{
+					types.TextContent{
+						Type: "text",
+						Text: "Weather for " + input.Location + ": Sunny",
 					},
 				},
-				Required: []string{"location"},
-			},
+			}, nil
 		},
-		{
-			Name:        "send_email",
-			Description: "Send an email message",
-			InputSchema: struct {
-				Type       string                 `json:"type"`
-				Properties map[string]interface{} `json:"properties,omitempty"`
-				Required   []string               `json:"required,omitempty"`
-			}{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"to":   map[string]interface{}{"type": "string"},
-					"body": map[string]interface{}{"type": "string"},
-				},
-				Required: []string{"to", "body"},
-			},
-		},
-	}
+	)
 
-	// Call SetTools, which should trigger a ToolsChanged notification
+	tools := []types.McpTool{weatherTool}
+
 	if err := toolsServer.SetTools(ctx, tools); err != nil {
 		t.Fatalf("Failed to set tools: %v", err)
 	}
 
-	// Wait for notification with timeout
 	select {
 	case <-notificationReceived:
 		// Success
@@ -128,68 +110,51 @@ func TestToolsServer_ListTools(t *testing.T) {
 	ctx, toolsServer, client, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Define initial tools
-	tools := []types.Tool{
-		{
-			Name:        "tool_one",
-			Description: "The first tool",
-			InputSchema: struct {
-				Type       string                 `json:"type"`
-				Properties map[string]interface{} `json:"properties,omitempty"`
-				Required   []string               `json:"required,omitempty"`
-			}{
-				Type: "object",
+	// Define new tools
+	tools := []types.McpTool{
+		types.NewTool[struct{ Value string }](
+			"tool_one",
+			"The first tool",
+			func(ctx context.Context, input struct{ Value string }) (*types.CallToolResult, error) {
+				return &types.CallToolResult{}, nil
 			},
-		},
-		{
-			Name:        "tool_two",
-			Description: "The second tool",
-			InputSchema: struct {
-				Type       string                 `json:"type"`
-				Properties map[string]interface{} `json:"properties,omitempty"`
-				Required   []string               `json:"required,omitempty"`
-			}{
-				Type: "object",
+		),
+		types.NewTool[struct{ Value string }](
+			"tool_two",
+			"The second tool",
+			func(ctx context.Context, input struct{ Value string }) (*types.CallToolResult, error) {
+				return &types.CallToolResult{}, nil
 			},
-		},
+		),
 	}
 
-	// Set tools on server
 	if err := toolsServer.SetTools(ctx, tools); err != nil {
 		t.Fatalf("Failed to set tools: %v", err)
 	}
 
-	// Send a list-tools request from the client
-	req := &types.ListToolsRequest{
+	// Send list request
+	resp, err := client.SendRequest(ctx, methods.ListTools, &types.ListToolsRequest{
 		Method: methods.ListTools,
-	}
-	resp, err := client.SendRequest(ctx, methods.ListTools, req)
+	})
 	if err != nil {
 		t.Fatalf("ListTools request failed: %v", err)
 	}
 
-	// Parse response
 	var result types.ListToolsResult
 	if err := json.Unmarshal(*resp.Result, &result); err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
 
-	// Verify the listed tools match what was set
 	if len(result.Tools) != len(tools) {
 		t.Errorf("Expected %d tools, got %d", len(tools), len(result.Tools))
 	}
 
-	for i, want := range tools {
-		if i >= len(result.Tools) {
-			t.Errorf("Missing tool at index %d", i)
-			continue
+	for i, tool := range tools {
+		if result.Tools[i].Name != tool.GetName() {
+			t.Errorf("Tool %d name mismatch: got %s, want %s", i, result.Tools[i].Name, tool.GetName())
 		}
-		got := result.Tools[i]
-		if got.Name != want.Name {
-			t.Errorf("Tool %d name mismatch: got %s, want %s", i, got.Name, want.Name)
-		}
-		if got.Description != want.Description {
-			t.Errorf("Tool %d description mismatch: got %s, want %s", i, got.Description, want.Description)
+		if result.Tools[i].Description != tool.GetDescription() {
+			t.Errorf("Tool %d description mismatch: got %s, want %s", i, result.Tools[i].Description, tool.GetDescription())
 		}
 	}
 }
@@ -198,55 +163,28 @@ func TestToolsServer_CallTool(t *testing.T) {
 	ctx, toolsServer, client, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Prepare a tool
-	tool := types.Tool{
-		Name:        "my_special_tool",
-		Description: "Do something special",
-		InputSchema: struct {
-			Type       string                 `json:"type"`
-			Properties map[string]interface{} `json:"properties,omitempty"`
-			Required   []string               `json:"required,omitempty"`
-		}{
-			Type: "object",
-			Properties: map[string]interface{}{
-				"value": map[string]interface{}{"type": "string"},
-			},
-			Required: []string{"value"},
-		},
-	}
-
-	// Set the tool
-	if err := toolsServer.SetTools(ctx, []types.Tool{tool}); err != nil {
-		t.Fatalf("Failed to set tools: %v", err)
-	}
-
-	// Register the tool handler
-	toolsServer.RegisterToolHandler("my_special_tool", func(ctx context.Context, args map[string]interface{}) (*types.CallToolResult, error) {
-		val, ok := args["value"].(string)
-		if !ok {
+	// Set up echo tool
+	echoTool := types.NewTool[EchoInput](
+		"my_special_tool",
+		"Do something special",
+		func(ctx context.Context, input EchoInput) (*types.CallToolResult, error) {
 			return &types.CallToolResult{
 				Content: []interface{}{
 					types.TextContent{
 						Type: "text",
-						Text: "Error: 'value' must be a string",
+						Text: "Echo: " + input.Value,
 					},
 				},
-				IsError: true,
+				IsError: false,
 			}, nil
-		}
-		// Return a non-error result
-		return &types.CallToolResult{
-			Content: []interface{}{
-				types.TextContent{
-					Type: "text",
-					Text: "Received value: " + val,
-				},
-			},
-			IsError: false,
-		}, nil
-	})
+		},
+	)
 
-	// Make a call to the tool
+	if err := toolsServer.SetTools(ctx, []types.McpTool{echoTool}); err != nil {
+		t.Fatalf("Failed to set tools: %v", err)
+	}
+
+	// Call the tool
 	callReq := &types.CallToolRequest{
 		Method:    methods.CallTool,
 		Name:      "my_special_tool",
@@ -257,28 +195,24 @@ func TestToolsServer_CallTool(t *testing.T) {
 		t.Fatalf("Failed to call tool: %v", err)
 	}
 
-	// Parse tool call result
 	var callResult types.CallToolResult
 	if err := json.Unmarshal(*callResp.Result, &callResult); err != nil {
 		t.Fatalf("Failed to unmarshal call result: %v", err)
 	}
 
-	// Verify
 	if callResult.IsError {
 		t.Error("Expected IsError=false, got true")
 	}
 	if len(callResult.Content) != 1 {
 		t.Fatalf("Expected 1 content item, got %d", len(callResult.Content))
 	}
-	txt, ok := callResult.Content[0].(map[string]interface{})
-	if !ok {
-		t.Fatalf("Expected text content object, got %T", callResult.Content[0])
+
+	content := callResult.Content[0].(map[string]interface{})
+	if content["type"] != "text" {
+		t.Errorf("Expected content type 'text', got '%v'", content["type"])
 	}
-	if txt["type"] != "text" {
-		t.Errorf("Expected content type 'text', got '%v'", txt["type"])
-	}
-	if txt["text"] != "Received value: Hello!" {
-		t.Errorf("Expected text 'Received value: Hello!', got '%v'", txt["text"])
+	if content["text"] != "Echo: Hello!" {
+		t.Errorf("Expected text 'Echo: Hello!', got '%v'", content["text"])
 	}
 }
 
@@ -286,7 +220,6 @@ func TestToolsServer_CallTool_NotFound(t *testing.T) {
 	ctx, _, client, cleanup := setupTest(t)
 	defer cleanup()
 
-	// Attempt calling a tool that hasn't been registered
 	callReq := &types.CallToolRequest{
 		Method:    methods.CallTool,
 		Name:      "unknown_tool",
@@ -297,7 +230,6 @@ func TestToolsServer_CallTool_NotFound(t *testing.T) {
 		t.Fatal("Expected error when calling an unregistered tool, got nil")
 	}
 
-	// Verify it's the correct type of error
 	mcpErr, ok := err.(*types.ErrorResponse)
 	if !ok {
 		t.Fatalf("Expected *types.ErrorResponse, got %T", err)
