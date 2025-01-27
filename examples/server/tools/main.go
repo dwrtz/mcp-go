@@ -36,7 +36,7 @@ func main() {
 	// Create server with tools
 	s := server.NewDefaultServer(
 		server.WithLogger(logger.NewStderrLogger("TOOLS-SERVER")),
-		server.WithTools([]types.McpTool{echoTool}),
+		server.WithTools(echoTool),
 	)
 
 	ctx := context.Background()

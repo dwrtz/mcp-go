@@ -81,7 +81,7 @@ func WithPrompts(initialPrompts []types.Prompt) ServerOption {
 }
 
 // WithTools enables tools functionality on the server
-func WithTools(initialTools []types.McpTool) ServerOption {
+func WithTools(initialTools ...types.McpTool) ServerOption {
 	return func(s *Server) {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,

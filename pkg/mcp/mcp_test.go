@@ -72,7 +72,7 @@ func setupClientServer(t *testing.T) (*client.Client, *server.Server, context.Co
 				},
 			},
 		),
-		server.WithTools([]types.McpTool{echoTool}),
+		server.WithTools(echoTool),
 	)
 
 	// Register content handler for resources
