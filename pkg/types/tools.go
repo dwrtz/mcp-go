@@ -1,5 +1,12 @@
 package types
 
+// ToolInputSchema represents the input schema for a tool
+type ToolInputSchema struct {
+	Type       string                 `json:"type"`
+	Properties map[string]interface{} `json:"properties,omitempty"`
+	Required   []string               `json:"required,omitempty"`
+}
+
 // Tool represents a tool that can be called by the client
 type Tool struct {
 	// Name of the tool
@@ -9,11 +16,7 @@ type Tool struct {
 	Description string `json:"description,omitempty"`
 
 	// JSON Schema defining expected parameters
-	InputSchema struct {
-		Type       string                 `json:"type"`
-		Properties map[string]interface{} `json:"properties,omitempty"`
-		Required   []string               `json:"required,omitempty"`
-	} `json:"inputSchema"`
+	InputSchema ToolInputSchema `json:"inputSchema"`
 }
 
 // ListToolsRequest represents a request to list available tools
