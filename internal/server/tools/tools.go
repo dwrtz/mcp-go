@@ -17,18 +17,23 @@ type ToolsServer struct {
 	mu   sync.RWMutex
 
 	tools        []types.Tool
-	toolHandlers map[string]ToolHandler
+	toolHandlers map[string]types.ToolHandler
 }
 
-// ToolHandler is a function that handles tool invocations
-type ToolHandler func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error)
-
 // NewToolsServer creates a new ToolsServer
-func NewToolsServer(base *base.Base, initialTools []types.Tool) *ToolsServer {
+func NewToolsServer(base *base.Base, initialTools []types.McpTool) *ToolsServer {
+	var newTools []types.Tool
+	newToolHandlers := make(map[string]types.ToolHandler)
+
+	for _, tool := range initialTools {
+		newTools = append(newTools, tool.GetDefinition())
+		newToolHandlers[tool.GetName()] = tool.GetHandler()
+	}
+
 	s := &ToolsServer{
 		base:         base,
-		tools:        initialTools,
-		toolHandlers: make(map[string]ToolHandler),
+		tools:        newTools,
+		toolHandlers: newToolHandlers,
 	}
 	base.RegisterRequestHandler(methods.ListTools, s.handleListTools)
 	base.RegisterRequestHandler(methods.CallTool, s.handleCallTool)
@@ -36,22 +41,24 @@ func NewToolsServer(base *base.Base, initialTools []types.Tool) *ToolsServer {
 }
 
 // SetTools updates the list of available tools
-func (s *ToolsServer) SetTools(ctx context.Context, tools []types.Tool) error {
+func (s *ToolsServer) SetTools(ctx context.Context, tools []types.McpTool) error {
+	var newTools []types.Tool
+	newToolHandlers := make(map[string]types.ToolHandler)
+
+	for _, tool := range tools {
+		newTools = append(newTools, tool.GetDefinition())
+		newToolHandlers[tool.GetName()] = tool.GetHandler()
+	}
+
 	s.mu.Lock()
-	s.tools = tools
+	s.tools = newTools
+	s.toolHandlers = newToolHandlers
 	s.mu.Unlock()
 
 	if s.base.Started {
 		return s.base.SendNotification(ctx, methods.ToolsChanged, nil)
 	}
 	return nil
-}
-
-// RegisterToolHandler registers a handler for a specific tool
-func (s *ToolsServer) RegisterToolHandler(name string, handler ToolHandler) {
-	s.mu.Lock()
-	s.toolHandlers[name] = handler
-	s.mu.Unlock()
 }
 
 func (s *ToolsServer) handleListTools(ctx context.Context, params json.RawMessage) (interface{}, error) {

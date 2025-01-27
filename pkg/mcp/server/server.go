@@ -81,7 +81,7 @@ func WithPrompts(initialPrompts []types.Prompt) ServerOption {
 }
 
 // WithTools enables tools functionality on the server
-func WithTools(initialTools []types.Tool) ServerOption {
+func WithTools(initialTools []types.McpTool) ServerOption {
 	return func(s *Server) {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,
@@ -242,19 +242,11 @@ func (s *Server) RegisterPromptGetter(name string, getter prompts.PromptGetter) 
 
 // SetTools updates the list of available tools and notifies connected clients.
 // Returns an error if tools are not supported or if the update fails.
-func (s *Server) SetTools(ctx context.Context, tools []types.Tool) error {
+func (s *Server) SetTools(ctx context.Context, newTools []types.McpTool) error {
 	if !s.SupportsTools() {
 		return types.NewError(types.MethodNotFound, "tools not supported")
 	}
-	return s.tools.SetTools(ctx, tools)
-}
-
-// RegisterToolHandler registers a handler for tool invocation.
-// The handler is called when clients request to call the tool with the given name.
-func (s *Server) RegisterToolHandler(name string, handler tools.ToolHandler) {
-	if s.SupportsTools() {
-		s.tools.RegisterToolHandler(name, handler)
-	}
+	return s.tools.SetTools(ctx, newTools)
 }
 
 // Root Methods
