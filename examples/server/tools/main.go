@@ -10,55 +10,34 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func main() {
-	s := server.NewDefaultServer(
-		server.WithLogger(logger.NewStderrLogger("TOOLS-SERVER")),
-		server.WithTools([]types.Tool{
-			{
-				Name:        "echo_tool",
-				Description: "Echoes back the input in 'value' argument",
-				InputSchema: struct {
-					Type       string                 `json:"type"`
-					Properties map[string]interface{} `json:"properties,omitempty"`
-					Required   []string               `json:"required,omitempty"`
-				}{
-					Type: "object",
-					Properties: map[string]interface{}{
-						"value": map[string]interface{}{
-							"type":        "string",
-							"description": "Input to echo",
-						},
-					},
-					Required: []string{"value"},
-				},
-			},
-		}),
-	)
+// EchoInput defines the input type for the echo tool
+type EchoInput struct {
+	Value string `json:"value" jsonschema:"description=Input to echo,required"`
+}
 
-	// Register a tool handler
-	s.RegisterToolHandler("echo_tool", func(ctx context.Context, arguments map[string]interface{}) (*types.CallToolResult, error) {
-		val, ok := arguments["value"].(string)
-		if !ok {
+func main() {
+	// Create an echo tool using the typed NewTool constructor
+	echoTool := types.NewTool(
+		"echo_tool",
+		"Echoes back the input in 'value' argument",
+		func(ctx context.Context, input EchoInput) (*types.CallToolResult, error) {
 			return &types.CallToolResult{
 				Content: []interface{}{
 					types.TextContent{
 						Type: "text",
-						Text: "Error: 'value' must be a string",
+						Text: "[TOOLS-SERVER] Echo: " + input.Value,
 					},
 				},
-				IsError: true,
+				IsError: false,
 			}, nil
-		}
-		return &types.CallToolResult{
-			Content: []interface{}{
-				types.TextContent{
-					Type: "text",
-					Text: "[TOOLS-SERVER] Echo: " + val,
-				},
-			},
-			IsError: false,
-		}, nil
-	})
+		},
+	)
+
+	// Create server with tools
+	s := server.NewDefaultServer(
+		server.WithLogger(logger.NewStderrLogger("TOOLS-SERVER")),
+		server.WithTools([]types.McpTool{echoTool}),
+	)
 
 	ctx := context.Background()
 	if err := s.Start(ctx); err != nil {
