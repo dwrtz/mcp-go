@@ -50,7 +50,7 @@ func NewDefaultClient(ctx context.Context, connectString string, opts ...ClientO
 
 	// 5. Create the client with the user's options
 	c := NewClient(t, opts...)
-
+	c.cmd = cmd
 	// 6. Start the transport
 	if err := c.Start(ctx); err != nil {
 		cmd.Process.Kill()
@@ -63,6 +63,7 @@ func NewDefaultClient(ctx context.Context, connectString string, opts ...ClientO
 // Client represents a Model Context Protocol client
 type Client struct {
 	base *base.Base
+	cmd  *exec.Cmd
 
 	// Feature-specific clients
 	roots     *roots.RootsClient
@@ -191,7 +192,13 @@ func (c *Client) Start(ctx context.Context) error {
 
 // Close shuts down the client
 func (c *Client) Close() error {
-	return c.base.Close()
+	_ = c.base.Close()
+	if c.cmd != nil && c.cmd.Process != nil {
+		c.cmd.Process.Kill()
+		c.cmd.Wait()
+		c.cmd = nil
+	}
+	return nil
 }
 
 // SupportsRoots returns whether the client supports roots functionality
