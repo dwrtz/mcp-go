@@ -169,9 +169,9 @@ func TestSamplingClient_HandleCreateMessageRequest(t *testing.T) {
 
 func TestSamplingClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 	ctx, baseServer, _, cleanup := setupTest(t)
-	defer cleanup()
+	defer cleanup() // ensures the transport is fully closed
 
-	// Create cancellable context
+	// Create a cancellable context
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -189,22 +189,26 @@ func TestSamplingClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 		MaxTokens: 100,
 	}
 
-	// Send request in goroutine since we'll cancel it
-	errChan := make(chan error)
+	// Send the request in a goroutine
+	errChan := make(chan error, 1)
 	go func() {
 		_, err := baseServer.SendRequest(ctx, methods.SampleCreate, req)
 		errChan <- err
 	}()
 
-	// Cancel context and verify we get appropriate error
+	// Immediately cancel
 	cancel()
 
+	// Wait for the request call to fail
 	select {
 	case err := <-errChan:
 		if err == nil {
 			t.Error("Expected error after context cancellation")
 		}
 	case <-time.After(time.Second):
-		t.Error("Timeout waiting for cancelled request")
+		t.Fatal("Timeout waiting for cancelled request")
 	}
+
+	// The test now returns => the "defer cleanup()" runs => the transport closes/waits
+	// => no background logs after the test is done => no panic
 }

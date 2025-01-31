@@ -41,6 +41,8 @@ type StdioTransport struct {
 	router *transport.MessageRouter
 	conn   *jsonrpc2.Conn
 	done   chan struct{}
+
+	wg     sync.WaitGroup
 	mu     sync.Mutex
 	logger *logger.Logger
 
@@ -70,14 +72,16 @@ func (t *StdioTransport) Start(ctx context.Context) error {
 	// Create the JSON-RPC handler
 	handler := jsonRPCHandler{transport: t}
 
-	// Create the connection. The custom handler below routes messages to t.router.
+	// Create the connection
 	t.conn = jsonrpc2.NewConn(ctx, stream, &handler)
 
-	// Watch for disconnect
+	// Start a goroutine to watch for disconnection or context cancellation
+	t.wg.Add(1)
 	go func() {
+		defer t.wg.Done()
 		select {
 		case <-t.conn.DisconnectNotify():
-			t.Close()
+			t.Close() // triggers t.conn.Close() inside
 		case <-ctx.Done():
 			t.Close()
 		}
@@ -99,19 +103,18 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 
 	// If msg.Method is non-empty, this is either a request or notification:
 	if msg.Method != "" {
-		// If msg.ID is set, it's a request
 		if msg.ID != nil {
 			var rawResult json.RawMessage
 			err := t.conn.Call(ctx, msg.Method, msg.Params, &rawResult)
 			if err != nil {
-				// Convert jsonrpc2.Error → types.ErrorResponse if needed
+				// Convert jsonrpc2.Error => types.ErrorResponse
 				if rpcErr, ok := err.(*jsonrpc2.Error); ok {
 					return types.NewError(int(rpcErr.Code), rpcErr.Message, rpcErr.Data)
 				}
 				return err
 			}
 
-			// Construct a synthetic "response" Message for the router
+			// Synthesize a response message for our router
 			response := &types.Message{
 				JSONRPC: types.JSONRPCVersion,
 				ID:      msg.ID,
@@ -124,7 +127,7 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 		return t.conn.Notify(ctx, msg.Method, msg.Params)
 	}
 
-	// If msg.Method = "", then it's a response
+	// If no Method, it's a response
 	if msg.Error != nil {
 		// Convert to jsonrpc2.Error
 		var rawData *json.RawMessage
@@ -143,55 +146,56 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 		})
 	}
 
+	// Otherwise, normal result
 	return t.conn.Reply(ctx, *msg.ID, msg.Result)
 }
 
-// GetRouter returns the transport's MessageRouter
+// GetRouter returns this transport's MessageRouter
 func (t *StdioTransport) GetRouter() *transport.MessageRouter {
 	return t.router
 }
 
-// Close shuts down the connection + signals done
+// Close closes the connection and signals done, but also waits for the goroutine.
 func (t *StdioTransport) Close() error {
 	t.mu.Lock()
-	defer t.mu.Unlock()
-
 	select {
 	case <-t.done:
-		// already closed
+		// Already closed
+		t.mu.Unlock()
 		return nil
 	default:
 		close(t.done)
-		if t.conn != nil {
-			return t.conn.Close()
-		}
-		return nil
 	}
+	if t.conn != nil {
+		_ = t.conn.Close() // forcibly kill
+	}
+	t.mu.Unlock()
+
+	// Wait for the read-loop goroutine to finish so no more logs occur after return
+	t.wg.Wait()
+
+	return nil
 }
 
-// Done returns a channel closed when transport is closed
+// Done is closed once this transport is fully closed
 func (t *StdioTransport) Done() <-chan struct{} {
 	return t.done
 }
 
-// Logf logs a formatted string if a logger is set
+// Logf logs if we have a logger
 func (t *StdioTransport) Logf(format string, args ...interface{}) {
 	if t.logger != nil {
 		(*t.logger).Logf(format, args...)
 	}
 }
 
-// SetLogger sets a logger for debug printing
+// SetLogger sets the logger for debug printing
 func (t *StdioTransport) SetLogger(l logger.Logger) {
 	t.logger = &l
 	t.router.SetLogger(l)
 }
 
-// -----------------------------------------------------------------------------
-// jsonRPCHandler is the “glue” that takes JSON-RPC 2.0 messages from the
-// sourcegraph/jsonrpc2 library and translates them into our internal
-// "MCP types.Message" struct, then passes them into t.router.
-// -----------------------------------------------------------------------------
+// jsonRPCHandler routes messages from sourcegraph/jsonrpc2 into our MessageRouter.
 type jsonRPCHandler struct {
 	transport *StdioTransport
 }
@@ -199,7 +203,6 @@ type jsonRPCHandler struct {
 func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
 	h.transport.Logf("Received message: %+v", req)
 
-	// Convert the request to an MCP-style message
 	msg := &types.Message{
 		JSONRPC: types.JSONRPCVersion,
 		Method:  req.Method,
@@ -210,6 +213,5 @@ func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *j
 		msg.ID = &req.ID
 	}
 
-	// Route the message to the channels in the router (Requests, Notifications, or Responses).
 	h.transport.router.Handle(ctx, msg)
 }
