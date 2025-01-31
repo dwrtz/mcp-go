@@ -38,3 +38,39 @@ func (l *StderrLogger) Logf(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "[%s] ", l.prefix)
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 }
+
+// FileLogger implements Logger using a file
+type FileLogger struct {
+	file   *os.File
+	prefix string
+	mu     sync.Mutex
+}
+
+// NewFileLogger creates a new FileLogger that writes to the specified file path
+func NewFileLogger(filepath string, prefix string) (*FileLogger, error) {
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	return &FileLogger{
+		file:   file,
+		prefix: prefix,
+	}, nil
+}
+
+func (l *FileLogger) Logf(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	fmt.Fprintf(l.file, "[%s] ", l.prefix)
+	fmt.Fprintf(l.file, format+"\n", args...)
+}
+
+// Close closes the underlying file
+func (l *FileLogger) Close() error {
+	if l.file != nil {
+		return l.file.Close()
+	}
+	return nil
+}
