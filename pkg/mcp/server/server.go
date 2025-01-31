@@ -112,9 +112,27 @@ func NewServer(transport transport.Transport, opts ...ServerOption) *Server {
 	return s
 }
 
-// Start begins processing messages
+// Start begins processing messages but also makes sure that the server's ctx
+// is canceled if the transport closes, so you can shut down everything automatically.
 func (s *Server) Start(ctx context.Context) error {
-	return s.base.Start(ctx)
+	// Create a child context we can cancel if the transport closes:
+	serverCtx, cancelFunc := context.WithCancel(ctx)
+
+	// Start the underlying base (which spins up its own goroutine)
+	if err := s.base.Start(serverCtx); err != nil {
+		cancelFunc()
+		return fmt.Errorf("failed to start base transport: %w", err)
+	}
+
+	// Watch for transport closure. When that happens, we cancel serverCtx.
+	go func() {
+		<-s.base.GetRouter().Done() // transport closed
+		s.Close()
+		cancelFunc()
+	}()
+
+	// We return immediately; background goroutines handle the requests.
+	return nil
 }
 
 // Close shuts down the server
