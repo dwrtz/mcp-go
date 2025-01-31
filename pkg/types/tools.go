@@ -110,7 +110,7 @@ func (t *TypedTool[T]) GetDefinition() Tool {
 		Name:        t.name,
 		Description: t.description,
 		InputSchema: ToolInputSchema{
-			Type:       schema.Type,
+			Type:       "object",
 			Properties: props,
 			Required:   schema.Required,
 		},
