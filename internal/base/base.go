@@ -62,15 +62,16 @@ func (b *Base) RegisterNotificationHandler(method string, handler NotificationHa
 func (b *Base) Start(ctx context.Context) error {
 	var startErr error
 	b.startOnce.Do(func() {
+		// Start message handling
+		go b.handleMessages(ctx)
+
 		// Start transport
 		if err := b.transport.Start(ctx); err != nil {
 			startErr = err
 			return
 		}
 
-		// Start message handling
 		b.Started = true
-		go b.handleMessages(ctx)
 
 	})
 	return startErr
