@@ -20,7 +20,7 @@ import (
 )
 
 // NewDefaultClient creates an MCP client with default settings
-func NewDefaultClient(ctx context.Context, connectString string, opts ...ClientOption) (*Client, error) {
+func NewDefaultClient(ctx context.Context, connectString string, opts ...Option) (*Client, error) {
 	// Validate connectString
 	if connectString == "" {
 		return nil, fmt.Errorf("connectString is required")
@@ -76,18 +76,18 @@ type Client struct {
 	capabilities types.ClientCapabilities
 }
 
-// ClientOption is a function that configures a Client
-type ClientOption func(*Client)
+// Option is a function that configures a Client
+type Option func(*Client)
 
 // WithLogger sets the logger for the client
-func WithLogger(l logger.Logger) ClientOption {
+func WithLogger(l logger.Logger) Option {
 	return func(c *Client) {
 		c.base.SetLogger(l)
 	}
 }
 
 // WithRoots enables roots functionality on the client
-func WithRoots(initialRoots []types.Root) ClientOption {
+func WithRoots(initialRoots []types.Root) Option {
 	return func(c *Client) {
 		c.capabilities.Roots = &types.RootsClientCapabilities{
 			ListChanged: true,
@@ -97,7 +97,7 @@ func WithRoots(initialRoots []types.Root) ClientOption {
 }
 
 // WithSampling enables sampling functionality on the client
-func WithSampling(handler types.SamplingHandler) ClientOption {
+func WithSampling(handler types.SamplingHandler) Option {
 	return func(c *Client) {
 		c.capabilities.Sampling = &types.SamplingClientCapabilities{}
 		c.sampling = sampling.NewClient(c.base, handler)
@@ -105,7 +105,7 @@ func WithSampling(handler types.SamplingHandler) ClientOption {
 }
 
 // NewClient creates a new MCP client
-func NewClient(transport transport.Transport, opts ...ClientOption) *Client {
+func NewClient(transport transport.Transport, opts ...Option) *Client {
 	c := &Client{
 		base:         base.NewBase(transport),
 		capabilities: types.ClientCapabilities{},
