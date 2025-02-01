@@ -28,9 +28,12 @@ func NewSamplingClient(base *base.Base, handler types.SamplingHandler) *Sampling
 	return c
 }
 
-func (c *SamplingClient) handleCreateMessage(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (c *SamplingClient) handleCreateMessage(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	var req types.CreateMessageRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 	return c.handler(ctx, &req)

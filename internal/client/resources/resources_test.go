@@ -75,7 +75,7 @@ func TestResourcesClient_List(t *testing.T) {
 			defer cleanup()
 
 			// Register request handler
-			server.RegisterRequestHandler(methods.ListResources, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.ListResources, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				if tt.wantErr {
 					return nil, types.NewError(types.InternalError, tt.errorMsg)
 				}
@@ -154,9 +154,9 @@ func TestResourcesClient_Read(t *testing.T) {
 			defer cleanup()
 
 			// Register request handler
-			server.RegisterRequestHandler(methods.ReadResource, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.ReadResource, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				var req types.ReadResourceRequest
-				if err := json.Unmarshal(params, &req); err != nil {
+				if err := json.Unmarshal(*params, &req); err != nil {
 					return nil, err
 				}
 

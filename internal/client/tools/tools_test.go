@@ -83,7 +83,7 @@ func TestToolsClient_List(t *testing.T) {
 			defer cleanup()
 
 			// Register request handler
-			server.RegisterRequestHandler(methods.ListTools, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.ListTools, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				if tt.wantErr {
 					return nil, types.NewError(tt.errCode, tt.errMsg)
 				}
@@ -160,7 +160,7 @@ func TestToolsClient_Call(t *testing.T) {
 			ctx, client, server, cleanup := setupTest(t)
 			defer cleanup()
 
-			server.RegisterRequestHandler(methods.CallTool, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.CallTool, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				if tt.wantErr {
 					return nil, types.NewError(tt.errorCode, tt.errorMsg)
 				}

@@ -118,9 +118,12 @@ func TestSamplingServer_CreateMessage(t *testing.T) {
 			defer cleanup()
 
 			// Register mock handler
-			client.RegisterRequestHandler(methods.SampleCreate, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			client.RegisterRequestHandler(methods.SampleCreate, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+				if params == nil {
+					return nil, types.NewError(types.InvalidParams, "missing params")
+				}
 				var req types.CreateMessageRequest
-				if err := json.Unmarshal(params, &req); err != nil {
+				if err := json.Unmarshal(*params, &req); err != nil {
 					return nil, err
 				}
 				return mockSamplingHandler(ctx, &req)

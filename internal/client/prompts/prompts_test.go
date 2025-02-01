@@ -72,7 +72,7 @@ func TestPromptsClient_List(t *testing.T) {
 			ctx, client, server, cleanup := setupTest(t)
 			defer cleanup()
 
-			server.RegisterRequestHandler(methods.ListPrompts, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.ListPrompts, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				if tc.wantErr {
 					return nil, types.NewError(types.InternalError, tc.errorMsg)
 				}
@@ -149,7 +149,7 @@ func TestPromptsClient_Get(t *testing.T) {
 			ctx, client, server, cleanup := setupTest(t)
 			defer cleanup()
 
-			server.RegisterRequestHandler(methods.GetPrompt, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			server.RegisterRequestHandler(methods.GetPrompt, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				if tc.wantErr {
 					return nil, types.NewError(tc.errorCode, tc.errorMsg)
 				}

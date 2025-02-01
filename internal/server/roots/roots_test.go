@@ -74,7 +74,7 @@ func TestRootsServer_List(t *testing.T) {
 			defer cleanup()
 
 			// Register handler on client side to respond to server's list request
-			clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+			clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 				return tt.clientResponse, nil
 			})
 
@@ -136,7 +136,7 @@ func TestRootsServer_InvalidRoots(t *testing.T) {
 	defer cleanup()
 
 	// Setup client to return invalid roots
-	clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 		return &types.ListRootsResult{
 			Roots: []types.Root{
 				{
@@ -175,7 +175,7 @@ func TestRootsServer_ListErrorHandling(t *testing.T) {
 	defer cleanup()
 
 	// Setup client to return an error
-	clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	clientBase.RegisterRequestHandler(methods.ListRoots, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 		return nil, types.NewError(types.InternalError, "internal server error")
 	})
 

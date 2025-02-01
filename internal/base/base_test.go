@@ -39,7 +39,7 @@ func TestPingPong(t *testing.T) {
 	defer cleanup()
 
 	// Register ping handler on server
-	srv.RegisterRequestHandler(methods.Ping, func(ctx context.Context, params json.RawMessage) (interface{}, error) {
+	srv.RegisterRequestHandler(methods.Ping, func(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 		logger.Logf("Server received ping, sending response")
 		return map[string]string{"status": "ok"}, nil
 	})

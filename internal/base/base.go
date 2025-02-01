@@ -13,7 +13,7 @@ import (
 )
 
 // RequestHandler handles MCP requests and returns a response
-type RequestHandler func(ctx context.Context, params json.RawMessage) (interface{}, error)
+type RequestHandler func(ctx context.Context, params *json.RawMessage) (interface{}, error)
 
 // NotificationHandler handles MCP notifications
 type NotificationHandler func(ctx context.Context, params json.RawMessage)
@@ -244,13 +244,8 @@ func (b *Base) handleRequest(ctx context.Context, msg *types.Message) {
 	b.handlerMu.RUnlock()
 
 	if ok {
-		if msg.Params == nil {
-			result, err := handler(ctx, nil)
-			_ = b.SendResponse(ctx, *msg.ID, result, err)
-		} else {
-			result, err := handler(ctx, *msg.Params)
-			_ = b.SendResponse(ctx, *msg.ID, result, err)
-		}
+		result, err := handler(ctx, msg.Params)
+		_ = b.SendResponse(ctx, *msg.ID, result, err)
 		return
 	}
 

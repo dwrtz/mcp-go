@@ -61,7 +61,7 @@ func (s *ToolsServer) SetTools(ctx context.Context, tools []types.McpTool) error
 	return nil
 }
 
-func (s *ToolsServer) handleListTools(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ToolsServer) handleListTools(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -70,9 +70,13 @@ func (s *ToolsServer) handleListTools(ctx context.Context, params json.RawMessag
 	}, nil
 }
 
-func (s *ToolsServer) handleCallTool(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ToolsServer) handleCallTool(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.CallToolRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 

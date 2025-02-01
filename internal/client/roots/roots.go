@@ -47,7 +47,7 @@ func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
 }
 
 // handleListRoots handles the roots/list request
-func (c *RootsClient) handleListRoots(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (c *RootsClient) handleListRoots(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	return &types.ListRootsResult{
 		Roots: c.roots,
 	}, nil

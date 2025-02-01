@@ -54,7 +54,7 @@ func (s *PromptsServer) RegisterPromptGetter(name string, getter PromptGetter) {
 	s.mu.Unlock()
 }
 
-func (s *PromptsServer) handleListPrompts(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *PromptsServer) handleListPrompts(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -63,9 +63,13 @@ func (s *PromptsServer) handleListPrompts(ctx context.Context, params json.RawMe
 	}, nil
 }
 
-func (s *PromptsServer) handleGetPrompt(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *PromptsServer) handleGetPrompt(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.GetPromptRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 

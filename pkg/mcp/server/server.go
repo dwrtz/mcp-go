@@ -171,9 +171,13 @@ func (s *Server) SupportsSampling() bool {
 }
 
 // handleInitialize handles the initialize request from clients
-func (s *Server) handleInitialize(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *Server) handleInitialize(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.InitializeRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, fmt.Errorf("failed to parse initialize request: %w", err)
 	}
 

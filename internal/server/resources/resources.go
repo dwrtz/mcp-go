@@ -86,7 +86,7 @@ func (s *ResourcesServer) NotifyResourceUpdated(ctx context.Context, uri string)
 	return nil
 }
 
-func (s *ResourcesServer) handleListResources(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ResourcesServer) handleListResources(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -95,9 +95,13 @@ func (s *ResourcesServer) handleListResources(ctx context.Context, params json.R
 	}, nil
 }
 
-func (s *ResourcesServer) handleReadResource(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ResourcesServer) handleReadResource(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.ReadResourceRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +124,7 @@ func (s *ResourcesServer) handleReadResource(ctx context.Context, params json.Ra
 	return nil, fmt.Errorf("no handler found for URI: %s", req.URI)
 }
 
-func (s *ResourcesServer) handleListTemplates(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ResourcesServer) handleListTemplates(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -129,9 +133,13 @@ func (s *ResourcesServer) handleListTemplates(ctx context.Context, params json.R
 	}, nil
 }
 
-func (s *ResourcesServer) handleSubscribe(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ResourcesServer) handleSubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.SubscribeRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 
@@ -142,9 +150,13 @@ func (s *ResourcesServer) handleSubscribe(ctx context.Context, params json.RawMe
 	return &struct{}{}, nil
 }
 
-func (s *ResourcesServer) handleUnsubscribe(ctx context.Context, params json.RawMessage) (interface{}, error) {
+func (s *ResourcesServer) handleUnsubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	if params == nil {
+		return nil, types.NewError(types.InvalidParams, "missing params")
+	}
+
 	var req types.UnsubscribeRequest
-	if err := json.Unmarshal(params, &req); err != nil {
+	if err := json.Unmarshal(*params, &req); err != nil {
 		return nil, err
 	}
 
