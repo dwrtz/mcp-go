@@ -20,7 +20,7 @@ import (
 )
 
 // NewDefaultServer creates an MCP server with default settings
-func NewDefaultServer(opts ...ServerOption) *Server {
+func NewDefaultServer(opts ...Option) *Server {
 
 	// Create transport
 	t := stdio.NewTransport(os.Stdin, os.Stdout)
@@ -49,18 +49,18 @@ type Server struct {
 	info types.Implementation
 }
 
-// ServerOption is a function that configures a Server
-type ServerOption func(*Server)
+// Option is a function that configures a Server
+type Option func(*Server)
 
 // WithLogger sets the logger for the server
-func WithLogger(l logger.Logger) ServerOption {
+func WithLogger(l logger.Logger) Option {
 	return func(s *Server) {
 		s.base.SetLogger(l)
 	}
 }
 
 // WithResources enables resources functionality on the server
-func WithResources(initialResources []types.Resource, initialTemplates []types.ResourceTemplate) ServerOption {
+func WithResources(initialResources []types.Resource, initialTemplates []types.ResourceTemplate) Option {
 	return func(s *Server) {
 		s.capabilities.Resources = &types.ResourcesServerCapabilities{
 			Subscribe:   true,
@@ -71,7 +71,7 @@ func WithResources(initialResources []types.Resource, initialTemplates []types.R
 }
 
 // WithPrompts enables prompts functionality on the server
-func WithPrompts(initialPrompts []types.Prompt) ServerOption {
+func WithPrompts(initialPrompts []types.Prompt) Option {
 	return func(s *Server) {
 		s.capabilities.Prompts = &types.PromptsServerCapabilities{
 			ListChanged: true,
@@ -81,7 +81,7 @@ func WithPrompts(initialPrompts []types.Prompt) ServerOption {
 }
 
 // WithTools enables tools functionality on the server
-func WithTools(initialTools ...types.McpTool) ServerOption {
+func WithTools(initialTools ...types.McpTool) Option {
 	return func(s *Server) {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,
@@ -91,7 +91,7 @@ func WithTools(initialTools ...types.McpTool) ServerOption {
 }
 
 // NewServer creates a new MCP server
-func NewServer(transport transport.Transport, opts ...ServerOption) *Server {
+func NewServer(transport transport.Transport, opts ...Option) *Server {
 	s := &Server{
 		base: base.NewBase(transport),
 		info: types.Implementation{
