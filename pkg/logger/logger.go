@@ -3,6 +3,8 @@ package logger
 import (
 	"fmt"
 	"os"
+	"path"
+	"strings"
 	"sync"
 )
 
@@ -47,8 +49,17 @@ type FileLogger struct {
 }
 
 // NewFileLogger creates a new FileLogger that writes to the specified file path
+// If filepath is `app.log`, it will be named `app.{pid}.log`.
 func NewFileLogger(filepath string, prefix string) (*FileLogger, error) {
-	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	// Add process ID to the filename
+	dir, filename := path.Split(filepath)
+	ext := path.Ext(filename)
+	basename := strings.TrimSuffix(filename, ext)
+	pid := os.Getpid()
+	newPath := path.Join(dir, fmt.Sprintf("%s.%d%s", basename, pid, ext))
+
+	// Open file with append mode
+	file, err := os.OpenFile(newPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open log file: %w", err)
 	}
