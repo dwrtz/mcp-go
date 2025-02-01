@@ -13,7 +13,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *PromptsServer, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Server, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
@@ -32,7 +32,7 @@ func setupTest(t *testing.T) (context.Context, *PromptsServer, *base.Base, func(
 			},
 		},
 	}
-	promptsServer := NewPromptsServer(baseServer, initialPrompts)
+	promptsServer := NewServer(baseServer, initialPrompts)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -50,7 +50,7 @@ func setupTest(t *testing.T) (context.Context, *PromptsServer, *base.Base, func(
 	return ctx, promptsServer, baseClient, cleanup
 }
 
-func TestPromptsServer_ListPrompts(t *testing.T) {
+func TestServer_ListPrompts(t *testing.T) {
 	testCases := []struct {
 		name    string
 		prompts []types.Prompt
@@ -144,7 +144,7 @@ func TestPromptsServer_ListPrompts(t *testing.T) {
 	}
 }
 
-func TestPromptsServer_GetPrompt(t *testing.T) {
+func TestServer_GetPrompt(t *testing.T) {
 	testCases := []struct {
 		name       string
 		promptName string
@@ -257,7 +257,7 @@ func TestPromptsServer_GetPrompt(t *testing.T) {
 	}
 }
 
-func TestPromptsServer_PromptsChanged(t *testing.T) {
+func TestServer_PromptsChanged(t *testing.T) {
 	ctx, server, client, cleanup := setupTest(t)
 	defer cleanup()
 

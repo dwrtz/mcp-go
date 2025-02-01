@@ -38,7 +38,7 @@ type Server struct {
 	// Feature-specific servers
 	roots     *roots.RootsServer
 	resources *resources.ResourcesServer
-	prompts   *prompts.PromptsServer
+	prompts   *prompts.Server
 	tools     *tools.ToolsServer
 	sampling  *sampling.SamplingServer
 
@@ -76,7 +76,7 @@ func WithPrompts(initialPrompts []types.Prompt) ServerOption {
 		s.capabilities.Prompts = &types.PromptsServerCapabilities{
 			ListChanged: true,
 		}
-		s.prompts = prompts.NewPromptsServer(s.base, initialPrompts)
+		s.prompts = prompts.NewServer(s.base, initialPrompts)
 	}
 }
 

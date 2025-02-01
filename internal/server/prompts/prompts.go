@@ -11,8 +11,8 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// PromptsServer provides server-side prompt functionality
-type PromptsServer struct {
+// Server provides server-side prompt functionality
+type Server struct {
 	base *base.Base
 	mu   sync.RWMutex
 
@@ -23,9 +23,9 @@ type PromptsServer struct {
 // PromptGetter is a function that returns a prompt result
 type PromptGetter func(ctx context.Context, args map[string]string) (*types.GetPromptResult, error)
 
-// NewPromptsServer creates a new PromptsServer
-func NewPromptsServer(base *base.Base, initialPrompts []types.Prompt) *PromptsServer {
-	s := &PromptsServer{
+// NewServer creates a new Server
+func NewServer(base *base.Base, initialPrompts []types.Prompt) *Server {
+	s := &Server{
 		base:          base,
 		prompts:       initialPrompts,
 		promptGetters: make(map[string]PromptGetter),
@@ -36,7 +36,7 @@ func NewPromptsServer(base *base.Base, initialPrompts []types.Prompt) *PromptsSe
 }
 
 // SetPrompts updates the list of available prompts
-func (s *PromptsServer) SetPrompts(ctx context.Context, prompts []types.Prompt) error {
+func (s *Server) SetPrompts(ctx context.Context, prompts []types.Prompt) error {
 	s.mu.Lock()
 	s.prompts = prompts
 	s.mu.Unlock()
@@ -48,13 +48,13 @@ func (s *PromptsServer) SetPrompts(ctx context.Context, prompts []types.Prompt) 
 }
 
 // RegisterPromptGetter registers a handler for getting prompt contents
-func (s *PromptsServer) RegisterPromptGetter(name string, getter PromptGetter) {
+func (s *Server) RegisterPromptGetter(name string, getter PromptGetter) {
 	s.mu.Lock()
 	s.promptGetters[name] = getter
 	s.mu.Unlock()
 }
 
-func (s *PromptsServer) handleListPrompts(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleListPrompts(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -63,7 +63,7 @@ func (s *PromptsServer) handleListPrompts(ctx context.Context, params *json.RawM
 	}, nil
 }
 
-func (s *PromptsServer) handleGetPrompt(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleGetPrompt(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")
 	}
