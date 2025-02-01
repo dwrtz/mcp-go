@@ -10,18 +10,18 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// ToolsClient provides client-side tool functionality
-type ToolsClient struct {
+// Client provides client-side tool functionality
+type Client struct {
 	base *base.Base
 }
 
-// NewToolsClient creates a new ToolsClient
-func NewToolsClient(base *base.Base) *ToolsClient {
-	return &ToolsClient{base: base}
+// NewClient creates a new Client
+func NewClient(base *base.Base) *Client {
+	return &Client{base: base}
 }
 
 // List requests the list of available tools
-func (c *ToolsClient) List(ctx context.Context) ([]types.Tool, error) {
+func (c *Client) List(ctx context.Context) ([]types.Tool, error) {
 	req := &types.ListToolsRequest{
 		Method: methods.ListTools,
 	}
@@ -50,7 +50,7 @@ func (c *ToolsClient) List(ctx context.Context) ([]types.Tool, error) {
 }
 
 // Call invokes a specific tool
-func (c *ToolsClient) Call(ctx context.Context, name string, arguments map[string]interface{}) (*types.CallToolResult, error) {
+func (c *Client) Call(ctx context.Context, name string, arguments map[string]interface{}) (*types.CallToolResult, error) {
 	req := &types.CallToolRequest{
 		Method:    methods.CallTool,
 		Name:      name,
@@ -81,7 +81,7 @@ func (c *ToolsClient) Call(ctx context.Context, name string, arguments map[strin
 }
 
 // OnToolListChanged registers a callback for tool list change notifications
-func (c *ToolsClient) OnToolListChanged(callback func()) {
+func (c *Client) OnToolListChanged(callback func()) {
 	c.base.RegisterNotificationHandler(methods.ToolsChanged, func(ctx context.Context, params json.RawMessage) {
 		callback()
 	})

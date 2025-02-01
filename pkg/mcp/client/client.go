@@ -69,7 +69,7 @@ type Client struct {
 	roots     *roots.Client
 	resources *resources.Client
 	prompts   *prompts.Client
-	tools     *tools.ToolsClient
+	tools     *tools.Client
 	sampling  *sampling.Client
 
 	// Client capabilities
@@ -170,7 +170,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 	}
 
 	if result.Capabilities.Tools != nil {
-		c.tools = tools.NewToolsClient(c.base)
+		c.tools = tools.NewClient(c.base)
 		c.OnToolListChanged(func() {
 			// default noop
 			c.base.Logf("from server: %s", methods.ToolsChanged)

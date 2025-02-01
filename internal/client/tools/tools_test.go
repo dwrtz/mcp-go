@@ -13,13 +13,13 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *ToolsClient, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Client, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	toolsClient := NewToolsClient(baseClient)
+	toolsClient := NewClient(baseClient)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -37,7 +37,7 @@ func setupTest(t *testing.T) (context.Context, *ToolsClient, *base.Base, func())
 	return ctx, toolsClient, baseServer, cleanup
 }
 
-func TestToolsClient_List(t *testing.T) {
+func TestClient_List(t *testing.T) {
 	tests := []struct {
 		name    string
 		tools   []types.Tool
@@ -118,7 +118,7 @@ func TestToolsClient_List(t *testing.T) {
 	}
 }
 
-func TestToolsClient_Call(t *testing.T) {
+func TestClient_Call(t *testing.T) {
 	tests := []struct {
 		name      string
 		toolName  string
@@ -196,7 +196,7 @@ func TestToolsClient_Call(t *testing.T) {
 	}
 }
 
-func TestToolsClient_OnToolListChanged(t *testing.T) {
+func TestClient_OnToolListChanged(t *testing.T) {
 	ctx, client, server, cleanup := setupTest(t)
 	defer cleanup()
 
