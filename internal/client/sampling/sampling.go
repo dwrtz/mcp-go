@@ -9,15 +9,15 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// SamplingClient provides client-side sampling functionality
-type SamplingClient struct {
+// Client provides client-side sampling functionality
+type Client struct {
 	base    *base.Base
 	handler types.SamplingHandler
 }
 
-// NewSamplingClient creates a new SamplingClient
-func NewSamplingClient(base *base.Base, handler types.SamplingHandler) *SamplingClient {
-	c := &SamplingClient{
+// NewClient creates a new Client
+func NewClient(base *base.Base, handler types.SamplingHandler) *Client {
+	c := &Client{
 		base:    base,
 		handler: handler,
 	}
@@ -28,7 +28,7 @@ func NewSamplingClient(base *base.Base, handler types.SamplingHandler) *Sampling
 	return c
 }
 
-func (c *SamplingClient) handleCreateMessage(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (c *Client) handleCreateMessage(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	var req types.CreateMessageRequest
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")

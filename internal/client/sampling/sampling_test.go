@@ -13,7 +13,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *base.Base, *SamplingClient, func()) {
+func setupTest(t *testing.T) (context.Context, *base.Base, *Client, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 
@@ -40,7 +40,7 @@ func setupTest(t *testing.T) (context.Context, *base.Base, *SamplingClient, func
 		}, nil
 	}
 
-	samplingClient := NewSamplingClient(baseClient, handler)
+	samplingClient := NewClient(baseClient, handler)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -58,7 +58,7 @@ func setupTest(t *testing.T) (context.Context, *base.Base, *SamplingClient, func
 	return ctx, baseServer, samplingClient, cleanup
 }
 
-func TestSamplingClient_HandleCreateMessageRequest(t *testing.T) {
+func TestClient_HandleCreateMessageRequest(t *testing.T) {
 	tests := []struct {
 		name          string
 		request       *types.CreateMessageRequest
@@ -167,7 +167,7 @@ func TestSamplingClient_HandleCreateMessageRequest(t *testing.T) {
 	}
 }
 
-func TestSamplingClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
+func TestClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 	ctx, baseServer, _, cleanup := setupTest(t)
 	defer cleanup() // ensures the transport is fully closed
 
@@ -209,6 +209,4 @@ func TestSamplingClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 		t.Fatal("Timeout waiting for cancelled request")
 	}
 
-	// The test now returns => the "defer cleanup()" runs => the transport closes/waits
-	// => no background logs after the test is done => no panic
 }

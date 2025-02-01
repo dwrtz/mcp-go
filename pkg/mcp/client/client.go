@@ -70,7 +70,7 @@ type Client struct {
 	resources *resources.Client
 	prompts   *prompts.Client
 	tools     *tools.ToolsClient
-	sampling  *sampling.SamplingClient
+	sampling  *sampling.Client
 
 	// Client capabilities
 	capabilities types.ClientCapabilities
@@ -100,7 +100,7 @@ func WithRoots(initialRoots []types.Root) ClientOption {
 func WithSampling(handler types.SamplingHandler) ClientOption {
 	return func(c *Client) {
 		c.capabilities.Sampling = &types.SamplingClientCapabilities{}
-		c.sampling = sampling.NewSamplingClient(c.base, handler)
+		c.sampling = sampling.NewClient(c.base, handler)
 	}
 }
 
