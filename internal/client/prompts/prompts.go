@@ -10,18 +10,18 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// PromptsClient provides client-side prompt functionality
-type PromptsClient struct {
+// Client provides client-side prompt functionality
+type Client struct {
 	base *base.Base
 }
 
-// NewPromptsClient creates a new PromptsClient
-func NewPromptsClient(base *base.Base) *PromptsClient {
-	return &PromptsClient{base: base}
+// NewClient creates a new Client
+func NewClient(base *base.Base) *Client {
+	return &Client{base: base}
 }
 
 // List requests the list of available prompts
-func (c *PromptsClient) List(ctx context.Context) ([]types.Prompt, error) {
+func (c *Client) List(ctx context.Context) ([]types.Prompt, error) {
 	req := &types.ListPromptsRequest{
 		Method: methods.ListPrompts,
 	}
@@ -50,7 +50,7 @@ func (c *PromptsClient) List(ctx context.Context) ([]types.Prompt, error) {
 }
 
 // Get requests a specific prompt
-func (c *PromptsClient) Get(ctx context.Context, name string, arguments map[string]string) (*types.GetPromptResult, error) {
+func (c *Client) Get(ctx context.Context, name string, arguments map[string]string) (*types.GetPromptResult, error) {
 	req := &types.GetPromptRequest{
 		Method:    methods.GetPrompt,
 		Name:      name,
@@ -81,7 +81,7 @@ func (c *PromptsClient) Get(ctx context.Context, name string, arguments map[stri
 }
 
 // OnPromptListChanged registers a callback for prompt list change notifications
-func (c *PromptsClient) OnPromptListChanged(callback func()) {
+func (c *Client) OnPromptListChanged(callback func()) {
 	c.base.RegisterNotificationHandler(methods.PromptsChanged, func(ctx context.Context, params json.RawMessage) {
 		callback()
 	})

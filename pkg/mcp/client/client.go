@@ -68,7 +68,7 @@ type Client struct {
 	// Feature-specific clients
 	roots     *roots.RootsClient
 	resources *resources.ResourcesClient
-	prompts   *prompts.PromptsClient
+	prompts   *prompts.Client
 	tools     *tools.ToolsClient
 	sampling  *sampling.SamplingClient
 
@@ -162,7 +162,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 	}
 
 	if result.Capabilities.Prompts != nil {
-		c.prompts = prompts.NewPromptsClient(c.base)
+		c.prompts = prompts.NewClient(c.base)
 		c.OnPromptListChanged(func() {
 			// default noop
 			c.base.Logf("from server: %s", methods.PromptsChanged)
