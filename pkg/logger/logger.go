@@ -17,6 +17,7 @@ type Logger interface {
 // NoopLogger implements Logger with no-op operations
 type NoopLogger struct{}
 
+// NewNoopLogger creates a new NoopLogger
 func NewNoopLogger() *NoopLogger {
 	return &NoopLogger{}
 }
@@ -29,6 +30,7 @@ type StderrLogger struct {
 	mu     sync.Mutex
 }
 
+// NewStderrLogger creates a new StderrLogger
 func NewStderrLogger(prefix string) *StderrLogger {
 	return &StderrLogger{prefix: prefix}
 }
@@ -70,6 +72,7 @@ func NewFileLogger(filepath string, prefix string) (*FileLogger, error) {
 	}, nil
 }
 
+// Logf logs a formatted message
 func (l *FileLogger) Logf(format string, args ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

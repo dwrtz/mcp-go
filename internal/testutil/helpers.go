@@ -98,6 +98,7 @@ func AssertMessagesEqual(t *testing.T, expected, actual *types.Message) {
 
 // Helper functions
 
+// IDsEqual compares two IDs for equality
 func IDsEqual(a, b *types.ID) bool {
 	if (a == nil) != (b == nil) {
 		return false
@@ -108,6 +109,7 @@ func IDsEqual(a, b *types.ID) bool {
 	return a.Num == b.Num && a.Str == b.Str && a.IsString == b.IsString
 }
 
+// JSONEqual compares two JSON messages for equality
 func JSONEqual(t *testing.T, a, b *json.RawMessage) bool {
 	if (a == nil) != (b == nil) {
 		return false
@@ -128,6 +130,7 @@ func JSONEqual(t *testing.T, a, b *json.RawMessage) bool {
 	return JSONDeepEqual(va, vb)
 }
 
+// JSONDeepEqual compares two JSON values for deep equality
 func JSONDeepEqual(a, b interface{}) bool {
 	// Convert both to JSON and back to normalize
 	aJSON, _ := json.Marshal(a)
@@ -140,6 +143,7 @@ func JSONDeepEqual(a, b interface{}) bool {
 	return JSONDeepEqualValue(va, vb)
 }
 
+// JSONDeepEqualValue compares two JSON values for deep equality
 func JSONDeepEqualValue(a, b interface{}) bool {
 	switch va := a.(type) {
 	case map[string]interface{}:
@@ -175,6 +179,7 @@ func JSONDeepEqualValue(a, b interface{}) bool {
 	}
 }
 
+// ErrorsEqual compares two error responses for equality
 func ErrorsEqual(a, b *types.ErrorResponse) bool {
 	if (a == nil) != (b == nil) {
 		return false

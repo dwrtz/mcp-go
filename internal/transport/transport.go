@@ -55,6 +55,7 @@ type MessageRouter struct {
 
 const defaultChannelSize = 10
 
+// NewMessageRouter creates a new MessageRouter
 func NewMessageRouter() *MessageRouter {
 	return &MessageRouter{
 		Requests:      make(chan *types.Message, defaultChannelSize),
