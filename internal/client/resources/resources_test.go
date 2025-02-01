@@ -13,13 +13,13 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *ResourcesClient, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Client, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
 
-	resourcesClient := NewResourcesClient(baseClient)
+	resourcesClient := NewClient(baseClient)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -37,7 +37,7 @@ func setupTest(t *testing.T) (context.Context, *ResourcesClient, *base.Base, fun
 	return ctx, resourcesClient, baseServer, cleanup
 }
 
-func TestResourcesClient_List(t *testing.T) {
+func TestClient_List(t *testing.T) {
 	tests := []struct {
 		name     string
 		response *types.ListResourcesResult
@@ -114,7 +114,7 @@ func TestResourcesClient_List(t *testing.T) {
 	}
 }
 
-func TestResourcesClient_Read(t *testing.T) {
+func TestClient_Read(t *testing.T) {
 	tests := []struct {
 		name     string
 		uri      string
@@ -220,7 +220,7 @@ func TestResourcesClient_Read(t *testing.T) {
 	}
 }
 
-func TestResourcesClient_OnResourceUpdated(t *testing.T) {
+func TestClient_OnResourceUpdated(t *testing.T) {
 	ctx, client, server, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -255,7 +255,7 @@ func TestResourcesClient_OnResourceUpdated(t *testing.T) {
 	}
 }
 
-func TestResourcesClient_OnResourceListChanged(t *testing.T) {
+func TestClient_OnResourceListChanged(t *testing.T) {
 	ctx, client, server, cleanup := setupTest(t)
 	defer cleanup()
 

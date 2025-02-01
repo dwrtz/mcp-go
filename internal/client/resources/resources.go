@@ -10,18 +10,18 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// ResourcesClient provides client-side resource functionality
-type ResourcesClient struct {
+// Client provides client-side resource functionality
+type Client struct {
 	base *base.Base
 }
 
-// NewResourcesClient creates a new ResourcesClient
-func NewResourcesClient(base *base.Base) *ResourcesClient {
-	return &ResourcesClient{base: base}
+// NewClient creates a new Client
+func NewClient(base *base.Base) *Client {
+	return &Client{base: base}
 }
 
 // List requests the list of available resources
-func (c *ResourcesClient) List(ctx context.Context) ([]types.Resource, error) {
+func (c *Client) List(ctx context.Context) ([]types.Resource, error) {
 	req := &types.ListResourcesRequest{
 		Method: methods.ListResources,
 	}
@@ -50,7 +50,7 @@ func (c *ResourcesClient) List(ctx context.Context) ([]types.Resource, error) {
 }
 
 // Read requests the contents of a specific resource
-func (c *ResourcesClient) Read(ctx context.Context, uri string) ([]types.ResourceContent, error) {
+func (c *Client) Read(ctx context.Context, uri string) ([]types.ResourceContent, error) {
 	req := &types.ReadResourceRequest{
 		Method: methods.ReadResource,
 		URI:    uri,
@@ -78,7 +78,7 @@ func (c *ResourcesClient) Read(ctx context.Context, uri string) ([]types.Resourc
 }
 
 // ListTemplates requests the list of available resource templates
-func (c *ResourcesClient) ListTemplates(ctx context.Context) ([]types.ResourceTemplate, error) {
+func (c *Client) ListTemplates(ctx context.Context) ([]types.ResourceTemplate, error) {
 	req := &types.ListResourceTemplatesRequest{
 		Method: methods.ListResourceTemplates,
 	}
@@ -105,7 +105,7 @@ func (c *ResourcesClient) ListTemplates(ctx context.Context) ([]types.ResourceTe
 }
 
 // Subscribe subscribes to updates for a specific resource
-func (c *ResourcesClient) Subscribe(ctx context.Context, uri string) error {
+func (c *Client) Subscribe(ctx context.Context, uri string) error {
 	req := &types.SubscribeRequest{
 		Method: methods.SubscribeResource,
 		URI:    uri,
@@ -124,7 +124,7 @@ func (c *ResourcesClient) Subscribe(ctx context.Context, uri string) error {
 }
 
 // Unsubscribe unsubscribes from updates for a specific resource
-func (c *ResourcesClient) Unsubscribe(ctx context.Context, uri string) error {
+func (c *Client) Unsubscribe(ctx context.Context, uri string) error {
 	req := &types.UnsubscribeRequest{
 		Method: methods.UnsubscribeResource,
 		URI:    uri,
@@ -143,7 +143,7 @@ func (c *ResourcesClient) Unsubscribe(ctx context.Context, uri string) error {
 }
 
 // OnResourceUpdated registers a callback for resource update notifications
-func (c *ResourcesClient) OnResourceUpdated(callback func(uri string)) {
+func (c *Client) OnResourceUpdated(callback func(uri string)) {
 	c.base.RegisterNotificationHandler(methods.ResourceUpdated, func(ctx context.Context, params json.RawMessage) {
 		var notif types.ResourceUpdatedNotification
 		if err := json.Unmarshal(params, &notif); err != nil {
@@ -155,7 +155,7 @@ func (c *ResourcesClient) OnResourceUpdated(callback func(uri string)) {
 }
 
 // OnResourceListChanged registers a callback for resource list change notifications
-func (c *ResourcesClient) OnResourceListChanged(callback func()) {
+func (c *Client) OnResourceListChanged(callback func()) {
 	c.base.RegisterNotificationHandler(methods.ResourceListChanged, func(ctx context.Context, params json.RawMessage) {
 		callback()
 	})

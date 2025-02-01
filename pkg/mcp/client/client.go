@@ -67,7 +67,7 @@ type Client struct {
 
 	// Feature-specific clients
 	roots     *roots.RootsClient
-	resources *resources.ResourcesClient
+	resources *resources.Client
 	prompts   *prompts.Client
 	tools     *tools.ToolsClient
 	sampling  *sampling.SamplingClient
@@ -150,7 +150,7 @@ func (c *Client) Initialize(ctx context.Context) error {
 
 	// Initialize feature-specific clients based on server capabilities
 	if result.Capabilities.Resources != nil {
-		c.resources = resources.NewResourcesClient(c.base)
+		c.resources = resources.NewClient(c.base)
 		c.OnResourceListChanged(func() {
 			// default noop
 			c.base.Logf("from server: %s", methods.ResourceListChanged)
