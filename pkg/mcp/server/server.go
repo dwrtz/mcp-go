@@ -23,7 +23,7 @@ import (
 func NewDefaultServer(opts ...ServerOption) *Server {
 
 	// Create transport
-	t := stdio.NewStdioTransport(os.Stdin, os.Stdout)
+	t := stdio.NewTransport(os.Stdin, os.Stdout)
 
 	// Create server
 	s := NewServer(t, opts...)

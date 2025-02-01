@@ -46,7 +46,7 @@ func NewDefaultClient(ctx context.Context, connectString string, opts ...ClientO
 	}
 
 	// 4. Create the stdio transport
-	t := stdio.NewStdioTransport(serverOut, serverIn)
+	t := stdio.NewTransport(serverOut, serverIn)
 
 	// 5. Create the client with the user's options
 	c := NewClient(t, opts...)

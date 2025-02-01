@@ -35,9 +35,9 @@ func (s stdioStream) Close() error {
 	return errOut
 }
 
-// StdioTransport is a Transport implementation that reads from an io.ReadCloser
+// Transport is a Transport implementation that reads from an io.ReadCloser
 // and writes to an io.WriteCloser using the jsonrpc2 library.
-type StdioTransport struct {
+type Transport struct {
 	router *transport.MessageRouter
 	conn   *jsonrpc2.Conn
 	done   chan struct{}
@@ -50,9 +50,9 @@ type StdioTransport struct {
 	stdout io.WriteCloser
 }
 
-// NewStdioTransport constructs a transport from a read/write pair (usually pipes).
-func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser) *StdioTransport {
-	return &StdioTransport{
+// NewTransport constructs a transport from a read/write pair (usually pipes).
+func NewTransport(stdin io.ReadCloser, stdout io.WriteCloser) *Transport {
+	return &Transport{
 		router: transport.NewMessageRouter(),
 		done:   make(chan struct{}),
 		logger: nil,
@@ -62,7 +62,7 @@ func NewStdioTransport(stdin io.ReadCloser, stdout io.WriteCloser) *StdioTranspo
 }
 
 // Start kicks off the jsonrpc2 listener in a background goroutine.
-func (t *StdioTransport) Start(ctx context.Context) error {
+func (t *Transport) Start(ctx context.Context) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -91,7 +91,7 @@ func (t *StdioTransport) Start(ctx context.Context) error {
 }
 
 // Send sends a single JSON-RPC message. If it’s a request, we wait for a response.
-func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
+func (t *Transport) Send(ctx context.Context, msg *types.Message) error {
 	t.Logf("Sending message: %+v", msg)
 
 	t.mu.Lock()
@@ -151,12 +151,12 @@ func (t *StdioTransport) Send(ctx context.Context, msg *types.Message) error {
 }
 
 // GetRouter returns this transport's MessageRouter
-func (t *StdioTransport) GetRouter() *transport.MessageRouter {
+func (t *Transport) GetRouter() *transport.MessageRouter {
 	return t.router
 }
 
 // Close closes the connection and signals done, but also waits for the goroutine.
-func (t *StdioTransport) Close() error {
+func (t *Transport) Close() error {
 	t.mu.Lock()
 	select {
 	case <-t.done:
@@ -178,26 +178,26 @@ func (t *StdioTransport) Close() error {
 }
 
 // Done is closed once this transport is fully closed
-func (t *StdioTransport) Done() <-chan struct{} {
+func (t *Transport) Done() <-chan struct{} {
 	return t.done
 }
 
 // Logf logs if we have a logger
-func (t *StdioTransport) Logf(format string, args ...interface{}) {
+func (t *Transport) Logf(format string, args ...interface{}) {
 	if t.logger != nil {
 		(*t.logger).Logf(format, args...)
 	}
 }
 
 // SetLogger sets the logger for debug printing
-func (t *StdioTransport) SetLogger(l logger.Logger) {
+func (t *Transport) SetLogger(l logger.Logger) {
 	t.logger = &l
 	t.router.SetLogger(l)
 }
 
 // jsonRPCHandler routes messages from sourcegraph/jsonrpc2 into our MessageRouter.
 type jsonRPCHandler struct {
-	transport *StdioTransport
+	transport *Transport
 }
 
 func (h *jsonRPCHandler) Handle(ctx context.Context, conn *jsonrpc2.Conn, req *jsonrpc2.Request) {
