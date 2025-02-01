@@ -11,16 +11,16 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// RootsClient provides client-side roots functionality
-type RootsClient struct {
+// Client provides client-side roots functionality
+type Client struct {
 	base  *base.Base
 	mu    sync.RWMutex
 	roots []types.Root
 }
 
-// NewRootsClient creates a new RootsClient
-func NewRootsClient(base *base.Base, initialRoots []types.Root) *RootsClient {
-	c := &RootsClient{
+// NewClient creates a new Client
+func NewClient(base *base.Base, initialRoots []types.Root) *Client {
+	c := &Client{
 		base:  base,
 		roots: initialRoots,
 	}
@@ -28,7 +28,8 @@ func NewRootsClient(base *base.Base, initialRoots []types.Root) *RootsClient {
 	return c
 }
 
-func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
+// SetRoots sets the roots for the client
+func (c *Client) SetRoots(ctx context.Context, roots []types.Root) error {
 	// Validate all roots before setting
 	for _, root := range roots {
 		if err := root.Validate(); err != nil {
@@ -47,7 +48,9 @@ func (c *RootsClient) SetRoots(ctx context.Context, roots []types.Root) error {
 }
 
 // handleListRoots handles the roots/list request
-func (c *RootsClient) handleListRoots(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (c *Client) handleListRoots(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	return &types.ListRootsResult{
 		Roots: c.roots,
 	}, nil

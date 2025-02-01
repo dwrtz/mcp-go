@@ -66,7 +66,7 @@ type Client struct {
 	cmd  *exec.Cmd
 
 	// Feature-specific clients
-	roots     *roots.RootsClient
+	roots     *roots.Client
 	resources *resources.Client
 	prompts   *prompts.Client
 	tools     *tools.ToolsClient
@@ -92,7 +92,7 @@ func WithRoots(initialRoots []types.Root) ClientOption {
 		c.capabilities.Roots = &types.RootsClientCapabilities{
 			ListChanged: true,
 		}
-		c.roots = roots.NewRootsClient(c.base, initialRoots)
+		c.roots = roots.NewClient(c.base, initialRoots)
 	}
 }
 

@@ -16,7 +16,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *RootsClient, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Client, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
@@ -28,7 +28,7 @@ func setupTest(t *testing.T) (context.Context, *RootsClient, *base.Base, func())
 			Name: "Test Directory",
 		},
 	}
-	rootsClient := NewRootsClient(baseClient, initialRoots)
+	rootsClient := NewClient(baseClient, initialRoots)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -46,7 +46,7 @@ func setupTest(t *testing.T) (context.Context, *RootsClient, *base.Base, func())
 	return ctx, rootsClient, baseServer, cleanup
 }
 
-func TestRootsClient_SetRoots(t *testing.T) {
+func TestClient_SetRoots(t *testing.T) {
 	testCases := []struct {
 		name    string
 		roots   []types.Root
@@ -139,7 +139,7 @@ func TestRootsClient_SetRoots(t *testing.T) {
 	}
 }
 
-func TestRootsClient_HandleInvalidRoots(t *testing.T) {
+func TestClient_HandleInvalidRoots(t *testing.T) {
 	ctx, client, _, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -159,7 +159,7 @@ func TestRootsClient_HandleInvalidRoots(t *testing.T) {
 	}
 }
 
-func TestRootsClient_ConcurrentRootUpdates(t *testing.T) {
+func TestClient_ConcurrentRootUpdates(t *testing.T) {
 	ctx, client, server, cleanup := setupTest(t)
 	defer cleanup()
 
