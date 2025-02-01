@@ -36,7 +36,7 @@ type Server struct {
 	base *base.Base
 
 	// Feature-specific servers
-	roots     *roots.RootsServer
+	roots     *roots.Server
 	resources *resources.Server
 	prompts   *prompts.Server
 	tools     *tools.ToolsServer
@@ -188,7 +188,7 @@ func (s *Server) handleInitialize(ctx context.Context, params *json.RawMessage) 
 
 	// Initialize roots and sampling server if client supports it
 	if req.Capabilities.Roots != nil {
-		s.roots = roots.NewRootsServer(s.base)
+		s.roots = roots.NewServer(s.base)
 		s.OnRootsChanged(func() {
 			// default noop
 			s.base.Logf("from client: %s", methods.RootsChanged)

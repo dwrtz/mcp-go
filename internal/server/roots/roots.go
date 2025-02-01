@@ -10,18 +10,18 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// RootsServer provides server-side roots functionality
-type RootsServer struct {
+// Server provides server-side roots functionality
+type Server struct {
 	base *base.Base
 }
 
-// NewRootsServer creates a new RootsServer
-func NewRootsServer(base *base.Base) *RootsServer {
-	return &RootsServer{base: base}
+// NewServer creates a new Server
+func NewServer(base *base.Base) *Server {
+	return &Server{base: base}
 }
 
 // ListRoots requests the list of available roots from the client
-func (s *RootsServer) ListRoots(ctx context.Context) ([]types.Root, error) {
+func (s *Server) ListRoots(ctx context.Context) ([]types.Root, error) {
 	req := &types.ListRootsRequest{
 		Method: methods.ListRoots,
 	}
@@ -46,7 +46,7 @@ func (s *RootsServer) ListRoots(ctx context.Context) ([]types.Root, error) {
 }
 
 // OnRootsChanged registers a callback to be called when the roots list changes
-func (s *RootsServer) OnRootsChanged(callback func()) {
+func (s *Server) OnRootsChanged(callback func()) {
 	s.base.RegisterNotificationHandler(methods.RootsChanged, func(ctx context.Context, params json.RawMessage) {
 		callback()
 	})
