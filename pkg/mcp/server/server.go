@@ -37,7 +37,7 @@ type Server struct {
 
 	// Feature-specific servers
 	roots     *roots.RootsServer
-	resources *resources.ResourcesServer
+	resources *resources.Server
 	prompts   *prompts.Server
 	tools     *tools.ToolsServer
 	sampling  *sampling.SamplingServer
@@ -66,7 +66,7 @@ func WithResources(initialResources []types.Resource, initialTemplates []types.R
 			Subscribe:   true,
 			ListChanged: true,
 		}
-		s.resources = resources.NewResourcesServer(s.base, initialResources, initialTemplates)
+		s.resources = resources.NewServer(s.base, initialResources, initialTemplates)
 	}
 }
 

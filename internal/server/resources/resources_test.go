@@ -13,7 +13,7 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *ResourcesServer, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Server, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
@@ -35,7 +35,7 @@ func setupTest(t *testing.T) (context.Context, *ResourcesServer, *base.Base, fun
 		},
 	}
 
-	resourcesServer := NewResourcesServer(baseServer, initialResources, initialTemplates)
+	resourcesServer := NewServer(baseServer, initialResources, initialTemplates)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -53,7 +53,7 @@ func setupTest(t *testing.T) (context.Context, *ResourcesServer, *base.Base, fun
 	return ctx, resourcesServer, baseClient, cleanup
 }
 
-func TestResourcesServer_ListResources(t *testing.T) {
+func TestServer_ListResources(t *testing.T) {
 	tests := []struct {
 		name      string
 		resources []types.Resource
@@ -130,7 +130,7 @@ func TestResourcesServer_ListResources(t *testing.T) {
 	}
 }
 
-func TestResourcesServer_ReadResource(t *testing.T) {
+func TestServer_ReadResource(t *testing.T) {
 	tests := []struct {
 		name          string
 		uri           string
@@ -259,7 +259,7 @@ func TestResourcesServer_ReadResource(t *testing.T) {
 	}
 }
 
-func TestResourcesServer_ResourceNotifications(t *testing.T) {
+func TestServer_ResourceNotifications(t *testing.T) {
 	ctx, server, client, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -324,7 +324,7 @@ func TestResourcesServer_ResourceNotifications(t *testing.T) {
 	}
 }
 
-func TestResourcesServer_ListTemplates(t *testing.T) {
+func TestServer_ListTemplates(t *testing.T) {
 	tests := []struct {
 		name      string
 		templates []types.ResourceTemplate

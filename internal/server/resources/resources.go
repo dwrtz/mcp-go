@@ -11,8 +11,8 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// ResourcesServer provides server-side resource functionality
-type ResourcesServer struct {
+// Server provides server-side resource functionality
+type Server struct {
 	base *base.Base
 	mu   sync.RWMutex
 
@@ -25,9 +25,9 @@ type ResourcesServer struct {
 // ContentHandler is a function that returns the contents of a resource
 type ContentHandler func(ctx context.Context, uri string) ([]types.ResourceContent, error)
 
-// NewResourcesServer creates a new ResourcesServer
-func NewResourcesServer(base *base.Base, initialResources []types.Resource, initialTemplates []types.ResourceTemplate) *ResourcesServer {
-	s := &ResourcesServer{
+// NewServer creates a new Server
+func NewServer(base *base.Base, initialResources []types.Resource, initialTemplates []types.ResourceTemplate) *Server {
+	s := &Server{
 		base:            base,
 		resources:       initialResources,
 		templates:       initialTemplates,
@@ -46,7 +46,7 @@ func NewResourcesServer(base *base.Base, initialResources []types.Resource, init
 }
 
 // SetResources updates the list of available resources
-func (s *ResourcesServer) SetResources(ctx context.Context, resources []types.Resource) error {
+func (s *Server) SetResources(ctx context.Context, resources []types.Resource) error {
 	s.mu.Lock()
 	s.resources = resources
 	s.mu.Unlock()
@@ -58,21 +58,21 @@ func (s *ResourcesServer) SetResources(ctx context.Context, resources []types.Re
 }
 
 // SetTemplates updates the list of resource templates
-func (s *ResourcesServer) SetTemplates(ctx context.Context, templates []types.ResourceTemplate) {
+func (s *Server) SetTemplates(ctx context.Context, templates []types.ResourceTemplate) {
 	s.mu.Lock()
 	s.templates = templates
 	s.mu.Unlock()
 }
 
 // RegisterContentHandler registers a handler for reading resource contents
-func (s *ResourcesServer) RegisterContentHandler(uriPrefix string, handler ContentHandler) {
+func (s *Server) RegisterContentHandler(uriPrefix string, handler ContentHandler) {
 	s.mu.Lock()
 	s.contentHandlers[uriPrefix] = handler
 	s.mu.Unlock()
 }
 
 // NotifyResourceUpdated notifies subscribers that a resource has changed
-func (s *ResourcesServer) NotifyResourceUpdated(ctx context.Context, uri string) error {
+func (s *Server) NotifyResourceUpdated(ctx context.Context, uri string) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -86,7 +86,7 @@ func (s *ResourcesServer) NotifyResourceUpdated(ctx context.Context, uri string)
 	return nil
 }
 
-func (s *ResourcesServer) handleListResources(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleListResources(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -95,7 +95,7 @@ func (s *ResourcesServer) handleListResources(ctx context.Context, params *json.
 	}, nil
 }
 
-func (s *ResourcesServer) handleReadResource(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleReadResource(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")
 	}
@@ -124,7 +124,7 @@ func (s *ResourcesServer) handleReadResource(ctx context.Context, params *json.R
 	return nil, fmt.Errorf("no handler found for URI: %s", req.URI)
 }
 
-func (s *ResourcesServer) handleListTemplates(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleListTemplates(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -133,7 +133,7 @@ func (s *ResourcesServer) handleListTemplates(ctx context.Context, params *json.
 	}, nil
 }
 
-func (s *ResourcesServer) handleSubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleSubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")
 	}
@@ -150,7 +150,7 @@ func (s *ResourcesServer) handleSubscribe(ctx context.Context, params *json.RawM
 	return &struct{}{}, nil
 }
 
-func (s *ResourcesServer) handleUnsubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleUnsubscribe(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")
 	}
