@@ -60,7 +60,7 @@ type ToolListChangedNotification struct {
 // ToolHandler is a function that handles tool invocations
 type ToolHandler func(ctx context.Context, arguments map[string]interface{}) (*CallToolResult, error)
 
-// Handler is a function that processes a tool's input and returns a result
+// TypedToolHandler is a function that processes a tool's input and returns a result
 type TypedToolHandler[T any] func(ctx context.Context, input T) (*CallToolResult, error)
 
 // McpTool defines the interface for a typed MCP tool

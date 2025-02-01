@@ -20,7 +20,10 @@ const (
 type Role string
 
 const (
-	RoleUser      Role = "user"
+	// RoleUser represents a user in an LLM conversation
+	RoleUser Role = "user"
+
+	// RoleAssistant represents an LLM assistant in an LLM conversation
 	RoleAssistant Role = "assistant"
 )
 

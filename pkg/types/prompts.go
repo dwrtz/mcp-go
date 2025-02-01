@@ -71,7 +71,7 @@ func (e EmbeddedResource) contentType() string {
 	return "resource"
 }
 
-// Custom unmarshaling for PromptMessage
+// UnmarshalJSON unmarshals a PromptMessage
 func (m *PromptMessage) UnmarshalJSON(data []byte) error {
 	type Alias PromptMessage // Avoid recursive unmarshaling
 	aux := &struct {
@@ -119,7 +119,7 @@ func (m *PromptMessage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom marshaling for PromptMessage
+// MarshalJSON marshals a PromptMessage
 func (m PromptMessage) MarshalJSON() ([]byte, error) {
 	type Alias PromptMessage
 	return json.Marshal(&struct {

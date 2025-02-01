@@ -49,7 +49,7 @@ type SamplingMessage struct {
 	Content MessageContent `json:"content"` // Using the same MessageContent interface
 }
 
-// Custom unmarshaling for SamplingMessage
+// UnmarshalJSON unmarshals a SamplingMessage
 func (m *SamplingMessage) UnmarshalJSON(data []byte) error {
 	type Alias SamplingMessage
 	aux := &struct {
@@ -91,7 +91,7 @@ func (m *SamplingMessage) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom marshaling for SamplingMessage
+// MarshalJSON marshals a SamplingMessage
 func (m SamplingMessage) MarshalJSON() ([]byte, error) {
 	type Alias SamplingMessage
 	return json.Marshal(&struct {
@@ -103,7 +103,7 @@ func (m SamplingMessage) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// Custom unmarshaling for CreateMessageResult
+// UnmarshalJSON unmarshals a CreateMessageResult
 func (r *CreateMessageResult) UnmarshalJSON(data []byte) error {
 	type Alias CreateMessageResult
 	aux := &struct {
@@ -144,7 +144,7 @@ func (r *CreateMessageResult) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Custom marshaling for CreateMessageResult
+// MarshalJSON marshals a CreateMessageResult
 func (r CreateMessageResult) MarshalJSON() ([]byte, error) {
 	type Alias CreateMessageResult
 	return json.Marshal(&struct {

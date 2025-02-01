@@ -22,6 +22,7 @@ func NewNoopLogger() *NoopLogger {
 	return &NoopLogger{}
 }
 
+// Logf logs a formatted message
 func (l *NoopLogger) Logf(format string, args ...interface{}) {}
 
 // StderrLogger implements Logger using stderr
@@ -35,6 +36,7 @@ func NewStderrLogger(prefix string) *StderrLogger {
 	return &StderrLogger{prefix: prefix}
 }
 
+// Logf logs a formatted message
 func (l *StderrLogger) Logf(format string, args ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

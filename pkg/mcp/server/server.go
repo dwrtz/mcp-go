@@ -278,7 +278,7 @@ func (s *Server) SetTools(ctx context.Context, newTools []types.McpTool) error {
 
 // Root Methods
 
-// List requests the list of available roots from the connected client.
+// ListRoots requests the list of available roots from the connected client.
 // Returns an error if roots are not supported by the client.
 func (s *Server) ListRoots(ctx context.Context) ([]types.Root, error) {
 	if !s.SupportsRoots() {
