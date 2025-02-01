@@ -12,13 +12,13 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-func setupTest(t *testing.T) (context.Context, *SamplingServer, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Server, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 
 	baseServer := base.NewBase(serverTransport)
 	baseClient := base.NewBase(clientTransport)
-	samplingServer := NewSamplingServer(baseServer)
+	samplingServer := NewServer(baseServer)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -58,7 +58,7 @@ func mockSamplingHandler(_ context.Context, req *types.CreateMessageRequest) (*t
 	}, nil
 }
 
-func TestSamplingServer_CreateMessage(t *testing.T) {
+func TestServer_CreateMessage(t *testing.T) {
 	tests := []struct {
 		name      string
 		messages  []types.SamplingMessage

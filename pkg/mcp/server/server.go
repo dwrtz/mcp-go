@@ -40,7 +40,7 @@ type Server struct {
 	resources *resources.Server
 	prompts   *prompts.Server
 	tools     *tools.ToolsServer
-	sampling  *sampling.SamplingServer
+	sampling  *sampling.Server
 
 	// Server capabilities
 	capabilities types.ServerCapabilities
@@ -196,7 +196,7 @@ func (s *Server) handleInitialize(ctx context.Context, params *json.RawMessage) 
 	}
 
 	if req.Capabilities.Sampling != nil {
-		s.sampling = sampling.NewSamplingServer(s.base)
+		s.sampling = sampling.NewServer(s.base)
 	}
 
 	return &types.InitializeResult{

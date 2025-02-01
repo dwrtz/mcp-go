@@ -10,18 +10,18 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// SamplingServer provides server-side sampling functionality
-type SamplingServer struct {
+// Server provides server-side sampling functionality
+type Server struct {
 	base *base.Base
 }
 
-// NewSamplingServer creates a new SamplingServer
-func NewSamplingServer(base *base.Base) *SamplingServer {
-	return &SamplingServer{base: base}
+// NewServer creates a new Server
+func NewServer(base *base.Base) *Server {
+	return &Server{base: base}
 }
 
 // CreateMessage requests a sample from the language model
-func (s *SamplingServer) CreateMessage(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
+func (s *Server) CreateMessage(ctx context.Context, req *types.CreateMessageRequest) (*types.CreateMessageResult, error) {
 	resp, err := s.base.SendRequest(ctx, methods.SampleCreate, req)
 	if err != nil {
 		return nil, err
