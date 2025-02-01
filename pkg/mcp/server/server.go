@@ -140,6 +140,11 @@ func (s *Server) Close() error {
 	return s.base.Close()
 }
 
+// Done returns a channel that is closed when the transport is closed
+func (s *Server) Done() <-chan struct{} {
+	return s.base.Done()
+}
+
 // SupportsRoots returns whether the client supports roots functionality
 func (s *Server) SupportsRoots() bool {
 	return s.roots != nil

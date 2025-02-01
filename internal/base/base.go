@@ -87,6 +87,11 @@ func (b *Base) Close() error {
 	return closeErr
 }
 
+// Done returns a channel that is closed when the transport is closed
+func (b *Base) Done() <-chan struct{} {
+	return b.transport.Done()
+}
+
 // GetRouter returns the message router
 func (b *Base) GetRouter() *transport.MessageRouter {
 	return b.transport.GetRouter()
