@@ -18,7 +18,7 @@ type EchoInput struct {
 	Value string `json:"value" jsonschema:"description=Value to echo back,required"`
 }
 
-func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func()) {
+func setupTest(t *testing.T) (context.Context, *Server, *base.Base, func()) {
 	logger := testutil.NewTestLogger(t)
 	serverTransport, clientTransport := mock.NewMockPipeTransports(logger)
 	baseServer := base.NewBase(serverTransport)
@@ -42,7 +42,7 @@ func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func())
 	)
 
 	initialTools := []types.McpTool{echoTool}
-	toolsServer := NewToolsServer(baseServer, initialTools)
+	toolsServer := NewServer(baseServer, initialTools)
 
 	ctx := context.Background()
 	if err := baseServer.Start(ctx); err != nil {
@@ -60,7 +60,7 @@ func setupTest(t *testing.T) (context.Context, *ToolsServer, *base.Base, func())
 	return ctx, toolsServer, baseClient, cleanup
 }
 
-func TestToolsServer_SetTools(t *testing.T) {
+func TestServer_SetTools(t *testing.T) {
 	ctx, toolsServer, client, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -106,7 +106,7 @@ func TestToolsServer_SetTools(t *testing.T) {
 	}
 }
 
-func TestToolsServer_ListTools(t *testing.T) {
+func TestServer_ListTools(t *testing.T) {
 	ctx, toolsServer, client, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -159,7 +159,7 @@ func TestToolsServer_ListTools(t *testing.T) {
 	}
 }
 
-func TestToolsServer_CallTool(t *testing.T) {
+func TestServer_CallTool(t *testing.T) {
 	ctx, toolsServer, client, cleanup := setupTest(t)
 	defer cleanup()
 
@@ -216,7 +216,7 @@ func TestToolsServer_CallTool(t *testing.T) {
 	}
 }
 
-func TestToolsServer_CallTool_NotFound(t *testing.T) {
+func TestServer_CallTool_NotFound(t *testing.T) {
 	ctx, _, client, cleanup := setupTest(t)
 	defer cleanup()
 

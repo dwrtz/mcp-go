@@ -11,8 +11,8 @@ import (
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
 
-// ToolsServer provides server-side tool functionality
-type ToolsServer struct {
+// Server provides server-side tool functionality
+type Server struct {
 	base *base.Base
 	mu   sync.RWMutex
 
@@ -20,8 +20,8 @@ type ToolsServer struct {
 	toolHandlers map[string]types.ToolHandler
 }
 
-// NewToolsServer creates a new ToolsServer
-func NewToolsServer(base *base.Base, initialTools []types.McpTool) *ToolsServer {
+// NewServer creates a new Server
+func NewServer(base *base.Base, initialTools []types.McpTool) *Server {
 	var newTools []types.Tool
 	newToolHandlers := make(map[string]types.ToolHandler)
 
@@ -30,7 +30,7 @@ func NewToolsServer(base *base.Base, initialTools []types.McpTool) *ToolsServer 
 		newToolHandlers[tool.GetName()] = tool.GetHandler()
 	}
 
-	s := &ToolsServer{
+	s := &Server{
 		base:         base,
 		tools:        newTools,
 		toolHandlers: newToolHandlers,
@@ -41,7 +41,7 @@ func NewToolsServer(base *base.Base, initialTools []types.McpTool) *ToolsServer 
 }
 
 // SetTools updates the list of available tools
-func (s *ToolsServer) SetTools(ctx context.Context, tools []types.McpTool) error {
+func (s *Server) SetTools(ctx context.Context, tools []types.McpTool) error {
 	var newTools []types.Tool
 	newToolHandlers := make(map[string]types.ToolHandler)
 
@@ -61,7 +61,7 @@ func (s *ToolsServer) SetTools(ctx context.Context, tools []types.McpTool) error
 	return nil
 }
 
-func (s *ToolsServer) handleListTools(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleListTools(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -70,7 +70,7 @@ func (s *ToolsServer) handleListTools(ctx context.Context, params *json.RawMessa
 	}, nil
 }
 
-func (s *ToolsServer) handleCallTool(ctx context.Context, params *json.RawMessage) (interface{}, error) {
+func (s *Server) handleCallTool(ctx context.Context, params *json.RawMessage) (interface{}, error) {
 	if params == nil {
 		return nil, types.NewError(types.InvalidParams, "missing params")
 	}

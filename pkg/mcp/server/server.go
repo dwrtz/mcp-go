@@ -39,7 +39,7 @@ type Server struct {
 	roots     *roots.Server
 	resources *resources.Server
 	prompts   *prompts.Server
-	tools     *tools.ToolsServer
+	tools     *tools.Server
 	sampling  *sampling.Server
 
 	// Server capabilities
@@ -86,7 +86,7 @@ func WithTools(initialTools ...types.McpTool) ServerOption {
 		s.capabilities.Tools = &types.ToolsServerCapabilities{
 			ListChanged: true,
 		}
-		s.tools = tools.NewToolsServer(s.base, initialTools)
+		s.tools = tools.NewServer(s.base, initialTools)
 	}
 }
 
