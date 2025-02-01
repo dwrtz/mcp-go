@@ -97,7 +97,11 @@ func (t *TypedTool[T]) GetDescription() string {
 
 func (t *TypedTool[T]) GetDefinition() Tool {
 	// Generate JSON schema from the type T
-	reflector := jsonschema.Reflector{}
+	reflector := &jsonschema.Reflector{
+		RequiredFromJSONSchemaTags: true,
+		DoNotReference:             true,
+	}
+
 	schema := reflector.Reflect(new(T))
 
 	// Convert the orderedmap to a map[string]interface{}
