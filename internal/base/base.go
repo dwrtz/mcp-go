@@ -231,20 +231,26 @@ func (b *Base) handleRequest(ctx context.Context, msg *types.Message) {
 		return
 	}
 
-	if msg.Params == nil {
-		respErr := types.NewError(types.InvalidParams,
-			fmt.Sprintf("missing params for method=%q, requestID=%v", msg.Method, *msg.ID))
-		_ = b.SendResponse(ctx, *msg.ID, nil, respErr)
-		return
-	}
+	// is this too strict?
+	// if msg.Params == nil {
+	// 	respErr := types.NewError(types.InvalidParams,
+	// 		fmt.Sprintf("missing params for method=%q, requestID=%v", msg.Method, *msg.ID))
+	// 	_ = b.SendResponse(ctx, *msg.ID, nil, respErr)
+	// 	return
+	// }
 
 	b.handlerMu.RLock()
 	handler, ok := b.requestHandlers[msg.Method]
 	b.handlerMu.RUnlock()
 
 	if ok {
-		result, err := handler(ctx, *msg.Params)
-		_ = b.SendResponse(ctx, *msg.ID, result, err)
+		if msg.Params == nil {
+			result, err := handler(ctx, nil)
+			_ = b.SendResponse(ctx, *msg.ID, result, err)
+		} else {
+			result, err := handler(ctx, *msg.Params)
+			_ = b.SendResponse(ctx, *msg.ID, result, err)
+		}
 		return
 	}
 
