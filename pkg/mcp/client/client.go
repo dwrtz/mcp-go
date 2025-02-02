@@ -13,6 +13,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/client/sampling"
 	"github.com/dwrtz/mcp-go/internal/client/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/internal/transport/sse"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -55,6 +56,23 @@ func NewDefaultClient(ctx context.Context, connectString string, opts ...Option)
 	if err := c.Start(ctx); err != nil {
 		cmd.Process.Kill()
 		return nil, fmt.Errorf("failed to start client: %w", err)
+	}
+
+	return c, nil
+}
+
+// NewSseClient creates an MCP client using SSE transport rather than stdio.
+// `serverAddr` is the host:port where the MCP server is listening for SSE (e.g. "localhost:8080").
+func NewSseClient(ctx context.Context, serverAddr string, opts ...Option) (*Client, error) {
+	// Create the SSE transport
+	t := sse.NewSSEClient(serverAddr)
+
+	// Build an MCP client with any user-specified options
+	c := NewClient(t, opts...)
+
+	// Start background processing
+	if err := c.Start(ctx); err != nil {
+		return nil, fmt.Errorf("failed to start SSE client: %w", err)
 	}
 
 	return c, nil
