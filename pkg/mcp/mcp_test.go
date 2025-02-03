@@ -3,7 +3,6 @@ package mcp_test
 import (
 	"context"
 	"fmt"
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -321,25 +320,14 @@ func TestConcurrentUsage(t *testing.T) {
 	wg.Wait()
 }
 
-// setupSseClientServer starts an SSE-based MCP server on a random ephemeral port
-// and connects an SSE-based MCP client. It returns the client, server, context, and cleanup function.
+// setupSseClientServer starts an SSE-based MCP server and connects
+// an SSE-based MCP client. It returns the client, server, context,
+// and a cleanup function.
 func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context.Context, func()) {
 	t.Helper()
 
 	//------------------------------------------------------------
-	// 1. Pick a random port to bind an SSE server on localhost
-	//------------------------------------------------------------
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to listen on an ephemeral port: %v", err)
-	}
-	// Grab the chosen address/port and close the listener immediately
-	// so we can pass the address into the SSE server.
-	addr := ln.Addr().String()
-	_ = ln.Close()
-
-	//------------------------------------------------------------
-	// 2. Create an SSE server using NewSseServer(addr, ...options...)
+	// 1. Create an SSE server using NewSseServer(addr, ...options...)
 	//------------------------------------------------------------
 	logger := testutil.NewTestLogger(t)
 
@@ -361,7 +349,7 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	)
 
 	s := server.NewSseServer(
-		addr,
+		":0",
 		server.WithLogger(logger),
 		server.WithResources(
 			[]types.Resource{
@@ -427,9 +415,20 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	})
 
 	//------------------------------------------------------------
+	// 2. Start the SSE server, and retrieve the actual address
+	//------------------------------------------------------------
+	ctx := context.Background()
+	if err := s.Start(ctx); err != nil {
+		t.Fatalf("Failed to start SSE server: %v", err)
+	}
+
+	boundAddr := s.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
+	//------------------------------------------------------------
 	// 3. Create an SSE client that connects to the same address
 	//------------------------------------------------------------
-	sseClient, err := client.NewSseClient(context.Background(), addr,
+	sseClient, err := client.NewSseClient(context.Background(), boundAddr,
 		client.WithLogger(logger),
 		client.WithRoots([]types.Root{
 			{
@@ -460,13 +459,9 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	}
 
 	//------------------------------------------------------------
-	// 4. Actually start the SSE server & client
+	// 4. Actually start the SSE client
 	//------------------------------------------------------------
-	ctx := context.Background()
 
-	if err := s.Start(ctx); err != nil {
-		t.Fatalf("Failed to start SSE server: %v", err)
-	}
 	if err := sseClient.Start(ctx); err != nil {
 		t.Fatalf("Failed to start SSE client: %v", err)
 	}

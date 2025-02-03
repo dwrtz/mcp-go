@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -21,38 +22,37 @@ type SSETransport struct {
 	router *transport.MessageRouter
 	done   chan struct{}
 
-	// For server mode
 	httpServer *http.Server
-	client     chan []byte
-	mu         sync.Mutex
-	connected  bool
 
-	// For client mode
+	// We hold our net.Listener if we're in server mode
+	listener  net.Listener
+	client    chan []byte
+	mu        sync.Mutex
+	connected bool
+
 	endpoint      string
-	connectionErr error // non-nil if client SSE connection has irrecoverably failed
+	connectionErr error // non-nil if client SSE connection fails
 
 	logger logger.Logger
+	// Actual address we ended up listening on (for ephemeral port usage)
+	boundAddr string
 }
 
-// NewSSEServer creates a new SSE transport in server mode
+// NewSSEServer creates a new SSE transport in server mode.
+// If addr == ":0", we will bind an ephemeral port automatically.
 func NewSSEServer(addr string) *SSETransport {
-	t := &SSETransport{
-		router: transport.NewMessageRouter(),
-		done:   make(chan struct{}),
-		client: make(chan []byte, 32), // small buffer
+	router := transport.NewMessageRouter()
+	doneCh := make(chan struct{})
+	clientCh := make(chan []byte, 32) // small buffer
+
+	return &SSETransport{
+		router: router,
+		done:   doneCh,
+		client: clientCh,
+		// We'll set up httpServer + net.Listener in Start()
+		httpServer: &http.Server{},
+		boundAddr:  addr, // store the desired address (may be ":0")
 	}
-
-	// Create HTTP server with custom mux
-	mux := http.NewServeMux()
-	mux.HandleFunc("/events", t.handleSSE)
-	mux.HandleFunc("/send", t.handleSend)
-
-	t.httpServer = &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
-
-	return t
 }
 
 // NewSSEClient creates a new SSE transport in client mode
@@ -64,23 +64,41 @@ func NewSSEClient(serverAddr string) *SSETransport {
 	}
 }
 
-// Start begins processing messages.
-// For a server, we deliberately do NOT tie the lifetime of ListenAndServe
-// to the passed-in context. We keep listening until Close() is called.
+// Start begins processing messages. In server mode, we create a net.Listener
+// and call httpServer.Serve() manually so we can retrieve the ephemeral port.
 func (t *SSETransport) Start(ctx context.Context) error {
 	if t.httpServer != nil {
 		// SERVER MODE
+		mux := http.NewServeMux()
+		mux.HandleFunc("/events", t.handleSSE)
+		mux.HandleFunc("/send", t.handleSend)
+		t.httpServer.Handler = mux
+
+		// 1) Create a listener (this picks an ephemeral port if boundAddr == ":0")
+		ln, err := net.Listen("tcp", t.boundAddr)
+		if err != nil {
+			return fmt.Errorf("failed to listen on %s: %w", t.boundAddr, err)
+		}
+		t.listener = ln
+		t.boundAddr = ln.Addr().String() // store the actual address/port
+
+		// 2) Start serving
 		go func() {
-			err := t.httpServer.ListenAndServe()
-			if err != nil && err != http.ErrServerClosed {
+			if err := t.httpServer.Serve(ln); err != nil && err != http.ErrServerClosed {
 				t.Logf("HTTP server error: %v", err)
 			}
 		}()
-	} else {
-		// CLIENT MODE - connect once in a goroutine
-		go t.connectSSE(ctx)
+		return nil
 	}
+
+	// CLIENT MODE...
+	go t.connectSSE(ctx)
 	return nil
+}
+
+// BoundAddr returns the actual address the SSE server is listening on.
+func (t *SSETransport) BoundAddr() string {
+	return t.boundAddr
 }
 
 // connectSSE tries a single SSE connection to /events in client mode.
@@ -212,18 +230,19 @@ func (t *SSETransport) GetRouter() *transport.MessageRouter {
 	return t.router
 }
 
-// Close shuts down the transport (stops the HTTP server if in server mode).
+// Close gracefully shuts down the server
 func (t *SSETransport) Close() error {
 	select {
 	case <-t.done:
-		// Already closed
 		return nil
 	default:
 		close(t.done)
 	}
-
 	if t.httpServer != nil {
 		_ = t.httpServer.Close()
+		if t.listener != nil {
+			_ = t.listener.Close()
+		}
 	}
 	return nil
 }

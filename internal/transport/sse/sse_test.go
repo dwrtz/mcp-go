@@ -2,28 +2,12 @@ package sse
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
-
-// getFreePort gets a free port from the OS
-func getFreePort() (string, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return "", err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return "", err
-	}
-	defer l.Close()
-	return l.Addr().String(), nil
-}
 
 func TestSSETransport(t *testing.T) {
 	tests := []struct {
@@ -44,10 +28,6 @@ func TestSSETransport(t *testing.T) {
 }
 
 func testBasicConnection(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -55,15 +35,19 @@ func testBasicConnection(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -85,10 +69,6 @@ func testBasicConnection(t *testing.T) {
 }
 
 func testMessageExchange(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -96,15 +76,19 @@ func testMessageExchange(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -202,10 +186,6 @@ func testMessageExchange(t *testing.T) {
 }
 
 func testReconnection(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -213,15 +193,19 @@ func testReconnection(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create first client
-	client := NewSSEClient(addr)
+	client := NewSSEClient(boundAddr)
 	client.SetLogger(logger)
 	if err := client.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -235,7 +219,7 @@ func testReconnection(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create new client - should be accepted now that the first is gone
-	client2 := NewSSEClient(addr)
+	client2 := NewSSEClient(boundAddr)
 	client2.SetLogger(logger)
 	if err := client2.Start(ctx); err != nil {
 		t.Fatalf("Failed to start second client: %v", err)
@@ -250,10 +234,6 @@ func testReconnection(t *testing.T) {
 }
 
 func testServerClose(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -261,14 +241,18 @@ func testServerClose(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)

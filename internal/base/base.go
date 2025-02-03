@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/internal/transport/sse"
 	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
@@ -271,4 +272,12 @@ func (b *Base) handleNotification(ctx context.Context, msg *types.Message) {
 	} else {
 		b.Logf("No handler registered for notification method: %s", msg.Method)
 	}
+}
+
+// BoundAddr returns the actual address the transport is listening on
+func (b *Base) BoundAddr() string {
+	if st, ok := b.transport.(*sse.SSETransport); ok {
+		return st.BoundAddr()
+	}
+	return ""
 }

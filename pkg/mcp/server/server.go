@@ -41,6 +41,11 @@ func NewSseServer(listenAddr string, opts ...Option) *Server {
 	return NewServer(t, opts...)
 }
 
+// If you need the actual bound address after Start():
+func (s *Server) BoundAddr() string {
+	return s.base.BoundAddr()
+}
+
 // Server represents a Model Context Protocol server
 type Server struct {
 	base *base.Base
