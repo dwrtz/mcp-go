@@ -320,8 +320,8 @@ func TestConcurrentUsage(t *testing.T) {
 	wg.Wait()
 }
 
-// setupSseClientServer starts an SSE-based MCP server on the hardcoded port 42069
-// and connects an SSE-based MCP client. It returns the client, server, context,
+// setupSseClientServer starts an SSE-based MCP server and connects
+// an SSE-based MCP client. It returns the client, server, context,
 // and a cleanup function.
 func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context.Context, func()) {
 	t.Helper()
@@ -349,7 +349,7 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	)
 
 	s := server.NewSseServer(
-		"127.0.0.1:42069",
+		":0",
 		server.WithLogger(logger),
 		server.WithResources(
 			[]types.Resource{
@@ -415,9 +415,20 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	})
 
 	//------------------------------------------------------------
-	// 2. Create an SSE client that connects to the same address
+	// 2. Start the SSE server, and retrieve the actual address
 	//------------------------------------------------------------
-	sseClient, err := client.NewSseClient(context.Background(), "127.0.0.1:42069",
+	ctx := context.Background()
+	if err := s.Start(ctx); err != nil {
+		t.Fatalf("Failed to start SSE server: %v", err)
+	}
+
+	boundAddr := s.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
+	//------------------------------------------------------------
+	// 3. Create an SSE client that connects to the same address
+	//------------------------------------------------------------
+	sseClient, err := client.NewSseClient(context.Background(), boundAddr,
 		client.WithLogger(logger),
 		client.WithRoots([]types.Root{
 			{
@@ -448,13 +459,9 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	}
 
 	//------------------------------------------------------------
-	// 3. Actually start the SSE server & client
+	// 4. Actually start the SSE client
 	//------------------------------------------------------------
-	ctx := context.Background()
 
-	if err := s.Start(ctx); err != nil {
-		t.Fatalf("Failed to start SSE server: %v", err)
-	}
 	if err := sseClient.Start(ctx); err != nil {
 		t.Fatalf("Failed to start SSE client: %v", err)
 	}
@@ -465,7 +472,7 @@ func setupSseClientServer(t *testing.T) (*client.Client, *server.Server, context
 	}
 
 	//------------------------------------------------------------
-	// 4. Cleanup function for test tear-down
+	// 5. Cleanup function for test tear-down
 	//------------------------------------------------------------
 	cleanup := func() {
 		sseClient.Close()

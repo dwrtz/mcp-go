@@ -28,7 +28,6 @@ func TestSSETransport(t *testing.T) {
 }
 
 func testBasicConnection(t *testing.T) {
-	addr := "127.0.0.1:42070"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -36,15 +35,19 @@ func testBasicConnection(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -66,7 +69,6 @@ func testBasicConnection(t *testing.T) {
 }
 
 func testMessageExchange(t *testing.T) {
-	addr := "127.0.0.1:42071"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -74,15 +76,19 @@ func testMessageExchange(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -180,7 +186,6 @@ func testMessageExchange(t *testing.T) {
 }
 
 func testReconnection(t *testing.T) {
-	addr := "127.0.0.1:42072"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -188,15 +193,19 @@ func testReconnection(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 	defer serverTransport.Close()
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create first client
-	client := NewSSEClient(addr)
+	client := NewSSEClient(boundAddr)
 	client.SetLogger(logger)
 	if err := client.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
@@ -210,7 +219,7 @@ func testReconnection(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Create new client - should be accepted now that the first is gone
-	client2 := NewSSEClient(addr)
+	client2 := NewSSEClient(boundAddr)
 	client2.SetLogger(logger)
 	if err := client2.Start(ctx); err != nil {
 		t.Fatalf("Failed to start second client: %v", err)
@@ -225,7 +234,6 @@ func testReconnection(t *testing.T) {
 }
 
 func testServerClose(t *testing.T) {
-	addr := "127.0.0.1:42073"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -233,14 +241,18 @@ func testServerClose(t *testing.T) {
 	logger := testutil.NewTestLogger(t)
 
 	// Create server transport
-	serverTransport := NewSSEServer(addr)
+	serverTransport := NewSSEServer(":0")
 	serverTransport.SetLogger(logger)
 	if err := serverTransport.Start(context.Background()); err != nil {
 		t.Fatalf("Failed to start server: %v", err)
 	}
 
+	// Retrieve the actual address
+	boundAddr := serverTransport.BoundAddr()
+	t.Logf("SSE server is listening at %s", boundAddr)
+
 	// Create client transport
-	clientTransport := NewSSEClient(addr)
+	clientTransport := NewSSEClient(boundAddr)
 	clientTransport.SetLogger(logger)
 	if err := clientTransport.Start(ctx); err != nil {
 		t.Fatalf("Failed to start client: %v", err)
