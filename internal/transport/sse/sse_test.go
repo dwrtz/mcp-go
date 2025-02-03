@@ -2,28 +2,12 @@ package sse
 
 import (
 	"context"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/dwrtz/mcp-go/internal/testutil"
 	"github.com/dwrtz/mcp-go/pkg/types"
 )
-
-// getFreePort gets a free port from the OS
-func getFreePort() (string, error) {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		return "", err
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return "", err
-	}
-	defer l.Close()
-	return l.Addr().String(), nil
-}
 
 func TestSSETransport(t *testing.T) {
 	tests := []struct {
@@ -44,10 +28,7 @@ func TestSSETransport(t *testing.T) {
 }
 
 func testBasicConnection(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
+	addr := "127.0.0.1:42070"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -85,10 +66,7 @@ func testBasicConnection(t *testing.T) {
 }
 
 func testMessageExchange(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
+	addr := "127.0.0.1:42071"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -202,10 +180,7 @@ func testMessageExchange(t *testing.T) {
 }
 
 func testReconnection(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
+	addr := "127.0.0.1:42072"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -250,10 +225,7 @@ func testReconnection(t *testing.T) {
 }
 
 func testServerClose(t *testing.T) {
-	addr, err := getFreePort()
-	if err != nil {
-		t.Fatalf("Failed to get free port: %v", err)
-	}
+	addr := "127.0.0.1:42073"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
