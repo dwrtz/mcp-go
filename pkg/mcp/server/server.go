@@ -13,6 +13,7 @@ import (
 	"github.com/dwrtz/mcp-go/internal/server/sampling"
 	"github.com/dwrtz/mcp-go/internal/server/tools"
 	"github.com/dwrtz/mcp-go/internal/transport"
+	"github.com/dwrtz/mcp-go/internal/transport/sse"
 	"github.com/dwrtz/mcp-go/internal/transport/stdio"
 	"github.com/dwrtz/mcp-go/pkg/logger"
 	"github.com/dwrtz/mcp-go/pkg/methods"
@@ -29,6 +30,15 @@ func NewDefaultServer(opts ...Option) *Server {
 	s := NewServer(t, opts...)
 
 	return s
+}
+
+// NewSseServer creates an MCP server listening on `listenAddr` (e.g. ":8080") via SSE.
+func NewSseServer(listenAddr string, opts ...Option) *Server {
+	// Create SSE transport for the given address
+	t := sse.NewSSEServer(listenAddr)
+
+	// Build an MCP server from the SSE transport
+	return NewServer(t, opts...)
 }
 
 // Server represents a Model Context Protocol server
