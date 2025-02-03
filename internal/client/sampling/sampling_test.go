@@ -169,11 +169,9 @@ func TestClient_HandleCreateMessageRequest(t *testing.T) {
 
 func TestClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 	ctx, baseServer, _, cleanup := setupTest(t)
-	defer cleanup() // ensures the transport is fully closed
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 
 	// Prepare request
 	req := &types.CreateMessageRequest{
@@ -209,4 +207,5 @@ func TestClient_HandleCreateMessageRequest_WithContext(t *testing.T) {
 		t.Fatal("Timeout waiting for cancelled request")
 	}
 
+	cleanup()
 }
